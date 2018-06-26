@@ -386,6 +386,11 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 		return nil
 	}
 
+	if app.Status.AppState.State == v1alpha1.CompletedState || app.Status.AppState.State == v1alpha1.FailedState {
+		glog.Infof("Trying to update a terminated Job. Terminated job [%v]", app.Name)
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverPreviouslyCompleted", "Driver %s completed", app.Name)
+		return nil
+	}
 	c.recordDriverEvent(app, update.podPhase, update.podName)
 
 	// The application state is solely based on the driver pod phase once the application is successfully
@@ -499,7 +504,8 @@ func (c *Controller) processSingleExecutorStateUpdate(update *executorStateUpdat
 
 func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
-	updateFunc func(*v1alpha1.SparkApplicationStatus)) *v1alpha1.SparkApplication {
+	updateFunc func(*v1alpha1.SparkApplicationStatus),
+) *v1alpha1.SparkApplication {
 	toUpdate := original.DeepCopy()
 
 	var lastUpdateErr error
