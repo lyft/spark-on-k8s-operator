@@ -498,23 +498,31 @@ func (c *Controller) processSingleExecutorStateUpdate(update *executorStateUpdat
 	})
 }
 
+func (c *Controller) isTerminalState(app *v1alpha1.SparkApplication) bool {
+	if app.Status.AppState.State == v1alpha1.CompletedState || app.Status.AppState.State == v1alpha1.FailedState {
+		glog.Warningf("Trying to update a terminated SparkApp. Terminated job [%v]", app.Name)
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkAppPreviouslyCompleted", "Application %s completed", app.Name)
+		return true
+	}
+	return false
+}
+
 func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
 	updateFunc func(*v1alpha1.SparkApplicationStatus),
 ) *v1alpha1.SparkApplication {
-
-	// Return if the App is already in a Terminal state
-	if original.Status.AppState.State == v1alpha1.CompletedState || original.Status.AppState.State == v1alpha1.FailedState {
-		glog.Infof("Trying to update a terminated SparkApp. Terminated job [%v]", original.Name)
-		c.recorder.Eventf(original, apiv1.EventTypeNormal, "SparkAppPreviouslyCompleted", "Application %s completed", original.Name)
-		return nil
-	}
 
 	glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
 
 	toUpdate := original.DeepCopy()
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
+
+		// Return if the App is already in a Terminal state
+		if c.isTerminalState(toUpdate) {
+			return nil
+		}
+
 		updated, err := c.tryUpdateStatus(original, toUpdate, updateFunc)
 		if err == nil {
 			return updated
