@@ -385,12 +385,6 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 	if update.appID != app.Status.AppID {
 		return nil
 	}
-
-	if app.Status.AppState.State == v1alpha1.CompletedState || app.Status.AppState.State == v1alpha1.FailedState {
-		glog.Infof("Trying to update a terminated Job. Terminated job [%v]", app.Name)
-		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverPreviouslyCompleted", "Driver %s completed", app.Name)
-		return nil
-	}
 	c.recordDriverEvent(app, update.podPhase, update.podName)
 
 	// The application state is solely based on the driver pod phase once the application is successfully
@@ -405,6 +399,7 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 			update.appName,
 			appState)
 	}
+	glog.V(2).Infof("Trying to update SparkApplication based on Driver State . Old: [%+v]. New: [%+v]", app, update)
 
 	return c.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		status.DriverInfo.PodName = update.podName
@@ -453,6 +448,7 @@ func (c *Controller) processSingleAppStateUpdate(update *appStateUpdate) *v1alph
 			glog.Infof("Not retrying submission of SparkApplication %s", update.name)
 		}
 	}
+	glog.V(2).Infof("Trying to update SparkApplication based on App State . Old: [%+v]. New: [%+v]", app, update)
 
 	return c.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		status.AppState.State = update.state
@@ -502,19 +498,37 @@ func (c *Controller) processSingleExecutorStateUpdate(update *executorStateUpdat
 	})
 }
 
+func (c *Controller) isTerminalState(app *v1alpha1.SparkApplication) bool {
+	if app.Status.AppState.State == v1alpha1.CompletedState || app.Status.AppState.State == v1alpha1.FailedState {
+		glog.Warningf("Trying to update a terminated SparkApp. Terminated job [%v]", app.Name)
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkAppPreviouslyCompleted", "Application %s completed", app.Name)
+		return true
+	}
+	return false
+}
+
 func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
 	updateFunc func(*v1alpha1.SparkApplicationStatus),
 ) *v1alpha1.SparkApplication {
-	toUpdate := original.DeepCopy()
 
+	glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
+
+	toUpdate := original.DeepCopy()
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
+
+		// Return if the App is already in a Terminal state
+		if c.isTerminalState(toUpdate) {
+			return nil
+		}
+
 		updated, err := c.tryUpdateStatus(original, toUpdate, updateFunc)
 		if err == nil {
 			return updated
 		}
 		lastUpdateErr = err
+		glog.Errorf("[Attempt: %v] failed to update SparkApplication [%v] %v", i, toUpdate, err)
 
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
