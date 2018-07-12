@@ -189,8 +189,9 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
-		// The spec has not changed but the application is subject to restart.
-		if shouldRestart(newApp) {
+		// The spec has not changed but the application is subject to restart if the application state has changed.
+		// If the application state remains the same, it doesn't make sense to even check the restart eligibility.
+		if oldApp.Status.AppState.State != newApp.Status.AppState.State && shouldRestart(newApp) {
 			c.handleRestart(newApp)
 		}
 		return
@@ -213,7 +214,7 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	// application if it is still running. Skip submitting the new application if cleanup for the old application
 	// failed to avoid potentially running both the old and new applications at the same time.
 	if err := c.deleteDriverAndUIService(oldApp, true); err != nil {
-		glog.Errorf("failed to delete the driver pod and UI service for SparkApplication %s: %v",
+		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
 			oldApp.Name, err)
 		return
 	}
@@ -385,6 +386,7 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 	if update.appID != app.Status.AppID {
 		return nil
 	}
+
 	c.recordDriverEvent(app, update.podPhase, update.podName)
 
 	// The application state is solely based on the driver pod phase once the application is successfully
@@ -399,7 +401,6 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 			update.appName,
 			appState)
 	}
-	glog.V(2).Infof("Trying to update SparkApplication based on Driver State . Old: [%+v]. New: [%+v]", app, update)
 
 	return c.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		status.DriverInfo.PodName = update.podName
@@ -448,7 +449,6 @@ func (c *Controller) processSingleAppStateUpdate(update *appStateUpdate) *v1alph
 			glog.Infof("Not retrying submission of SparkApplication %s", update.name)
 		}
 	}
-	glog.V(2).Infof("Trying to update SparkApplication based on App State . Old: [%+v]. New: [%+v]", app, update)
 
 	return c.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		status.AppState.State = update.state
@@ -498,37 +498,18 @@ func (c *Controller) processSingleExecutorStateUpdate(update *executorStateUpdat
 	})
 }
 
-func (c *Controller) isTerminalState(app *v1alpha1.SparkApplication) bool {
-	if app.Status.AppState.State == v1alpha1.CompletedState || app.Status.AppState.State == v1alpha1.FailedState {
-		glog.Warningf("Trying to update a terminated SparkApp. Terminated job [%v]", app.Name)
-		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkAppPreviouslyCompleted", "Application %s completed", app.Name)
-		return true
-	}
-	return false
-}
-
 func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
-	updateFunc func(*v1alpha1.SparkApplicationStatus),
-) *v1alpha1.SparkApplication {
-
-	glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
-
+	updateFunc func(*v1alpha1.SparkApplicationStatus)) *v1alpha1.SparkApplication {
 	toUpdate := original.DeepCopy()
+
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
-
-		// Return if the App is already in a Terminal state
-		if c.isTerminalState(toUpdate) {
-			return nil
-		}
-
 		updated, err := c.tryUpdateStatus(original, toUpdate, updateFunc)
 		if err == nil {
 			return updated
 		}
 		lastUpdateErr = err
-		glog.Errorf("[Attempt: %v] failed to update SparkApplication [%v] %v", i, toUpdate, err)
 
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
@@ -576,13 +557,7 @@ func (c *Controller) handleRestart(app *v1alpha1.SparkApplication) {
 	// deleting a already terminated driver pod won't trigger a driver state update by the sparkPodMonitor so won't
 	// cause repetitive restart handling.
 	if err := c.deleteDriverAndUIService(app, false); err != nil {
-		// If the error was because the old driver pod or UI service was not found, skip because very likely the
-		// application has already been restarted and the driver pod/service have already been deleted.
-		// TODO: This is a hacky way of solving the issue of duplicated restarts. Need a long-term solution.
-		if errors.IsNotFound(err) {
-			return
-		}
-		glog.Errorf("failed to delete the driver pod and UI service for SparkApplication %s: %v",
+		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
 			app.Name, err)
 	}
 
@@ -599,6 +574,11 @@ func (c *Controller) handleRestart(app *v1alpha1.SparkApplication) {
 
 func (c *Controller) handleResubmission(app *v1alpha1.SparkApplication, submissionRetries int32) {
 	glog.Infof("Retrying submission of SparkApplication %s", app.Name)
+
+	if err := c.deleteDriverAndUIService(app, false); err != nil {
+		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
+			app.Name, err)
+	}
 
 	if app.Spec.SubmissionRetryInterval != nil {
 		interval := time.Duration(*app.Spec.SubmissionRetryInterval) * time.Second
