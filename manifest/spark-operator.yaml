@@ -53,3 +53,4 @@ spec:
         - -logtostderr
         - -enable-initializer=false
         - -enable-metrics=true
+        - -metrics-labels=app_type
