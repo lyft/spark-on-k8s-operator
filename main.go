@@ -21,13 +21,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	"github.com/golang/glog"
-
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +31,10 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -46,6 +44,7 @@ import (
 	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
 	"k8s.io/spark-on-k8s-operator/pkg/initializer"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 var (
@@ -66,9 +65,17 @@ var (
 	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
 	namespace      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. "+
 		"Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+
+	enableMetrics = flag.Bool("enable-metrics", true, "Whether to enable the "+
+		"metrics endpoint.")
+	metricsPort     = flag.String("metrics-port", ":10254", "Port for the metrics endpoint.")
+	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
+	metricsPrefix   = flag.String("metrics-prefix", "", "Prefix for the metrics")
 )
 
 func main() {
+	var metricsLabels arrayFlags
+	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
@@ -86,6 +93,12 @@ func main() {
 		if err = checkKubeDNS(kubeClient); err != nil {
 			glog.Fatal(err)
 		}
+	}
+
+	var metricsBundle *util.PrometheusMetrics
+	if *enableMetrics {
+		glog.Info("Enabling metrics")
+		metricsBundle = util.NewPrometheusMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix, metricsLabels)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -123,7 +136,7 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricsBundle, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
@@ -183,5 +196,16 @@ func checkKubeDNS(kubeClient clientset.Interface) error {
 		return fmt.Errorf("no endpoints for kube-dns available in namespace kube-system")
 	}
 
+	return nil
+}
+
+type arrayFlags []string
+
+func (a *arrayFlags) String() string {
+	return fmt.Sprint(*a)
+}
+
+func (a *arrayFlags) Set(value string) error {
+	*a = append(*a, value)
 	return nil
 }
