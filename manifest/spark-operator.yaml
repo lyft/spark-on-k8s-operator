@@ -51,6 +51,3 @@ spec:
           - containerPort: 10254
         args:
         - -logtostderr
-        - -enable-initializer=false
-        - -enable-metrics=true
-        - -metrics-labels=app_type

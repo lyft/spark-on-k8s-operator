@@ -64,7 +64,7 @@ func (c *FakeScheduledSparkApplications) List(opts v1.ListOptions) (result *v1al
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.ScheduledSparkApplicationList{}
+	list := &v1alpha1.ScheduledSparkApplicationList{ListMeta: obj.(*v1alpha1.ScheduledSparkApplicationList).ListMeta}
 	for _, item := range obj.(*v1alpha1.ScheduledSparkApplicationList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)

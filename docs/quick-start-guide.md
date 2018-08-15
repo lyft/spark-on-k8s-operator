@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-For a more detailed guide on how to use, compose, and work with `SparkAppliction`s, please refer to the
+For a more detailed guide on how to use, compose, and work with `SparkApplication`s, please refer to the
 [User Guide](user-guide.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md).
 
 ## Table of Contents
@@ -8,22 +8,32 @@ For a more detailed guide on how to use, compose, and work with `SparkAppliction
 2. [Configuration](#configuration)
 3. [Upgrade](#upgrade)
 4. [Running the Examples](#running-the-examples)
-5. [Using the Initializer](#using-the-initializer)
+5. [Using the Mutating Admission Webhook](#using-the-mutating-admission-webhook)
 6. [Build](#build)
 
 ## Installation
 
-To install the Spark Operator on a Kubernetes cluster, run the following command:
+Before installing the Spark Operator, run the following command to setup the environment for the operator:
 
 ```bash
-$ kubectl apply -f manifest/
+$ kubectl apply -f manifest/spark-operator-rbac.yaml
+$ kubectl apply -f manifest/spark-rbac.yaml
 ```
-This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace, and create a
-Deployment named `sparkoperator` in the namespace.
 
-The [initializer](design.md#spark-pod-initializer) is disabled by default using the Spark Operator manifest at
-`manifest/spark-operator.yaml`. It can be enabled by removing the flag `-enable-initializer=false` or setting it to
-`true`, and running `kubectl apply -f manifest/spark-operator.yaml`.
+This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace. It will also
+setup RBAC for driver pods of your Spark applications to be able to manipulate executor pods. 
+
+The Spark Operator optionally uses a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
+for Spark pod customization. To install the Spark Operator **without** the mutating admission webhook on a Kubernetes cluster, run the following command:
+
+```bash
+$ kubectl apply -f manifest/spark-operator.yaml
+```
+
+This will create a Deployment named `sparkoperator` in namespace `sparkoperator`.
+
+Alternatively, follow [Using the Mutating Admission Webhook](#using-the-mutating-admission-webhook) for instructions on
+how to install the operator with the mutating admission webhook.
 
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role)
 in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role
@@ -42,6 +52,7 @@ $ kubectl describe deployment sparkoperator -n sparkoperator
 
 ### Metrics
 
+<<<<<<< HEAD
 The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. This is enabled by default and can be disabled by setting  the flag `-enable-metrics=false` and running 
  `kubectl apply -f manifest/spark-operator.yaml`. You might also want to remove the prometheus annotations `prometheus.io/scrape`
   and `prometheus.io/port` which are used by Prometheus to scrape the metric endpoint if you are no longer enabling metrics.
@@ -60,6 +71,27 @@ spark_app_executor_success_count
 spark_app_executor_failure_count
 ```
 The following is a list of all the configurations the operators supports for metrics: 
+=======
+The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`.  If you would like to expose metrics, please install the operator via `kubectl apply -f manifest/spark-operator-with-metrics.yaml`.
+This installs the operator with additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint.
+  
+If enabled, the operator generates the following metrics:
+
+| Metric | Description |
+| ------------- | ------------- |
+| `spark_app_submit_count`  | Total number of SparkApplication submitted by the Operator.|
+| `spark_app_success_count` | Total number of SparkApplication which completed successfully.|
+| `spark_app_failure_count` | Total number of SparkApplication which failed to complete. |
+| `spark_app_running_count` | Total number of SparkApplication which are currently running.|
+| `spark_app_success_execution_time_microseconds` | Execution time for applications which succeeded.|
+| `spark_app_failure_execution_time_microseconds` |Execution time for applications which failed. |
+| `spark_app_executor_success_count` | Total number of Spark Executors which completed successfully. |
+| `spark_app_executor_failure_count` | Total number of Spark Executors which failed. |
+| `spark_app_executor_running_count` | Total number of Spark Executors which are currently running. |
+
+The following is a list of all the configurations the operators supports for metrics: 
+
+>>>>>>> 1e7918c89c9e02bf4d656f7af3c3f6653cfc2cdc
 ```bash
 -enable-metrics=true
 -metrics-port=10254
@@ -68,12 +100,25 @@ The following is a list of all the configurations the operators supports for met
 -metrics-label=label1Key
 -metrics-label=label2Key
 ```
+<<<<<<< HEAD
 A note about `metrics-labels`: In `Prometheus`, every unique combination of key-value label pair represents a new time series,
  which can dramatically increase the amount of data stored.  Hence labels should not be used to store dimensions with high 
  cardinality with potentially a large or unbounded value range.
 
 Also some of these metrics are generated by listening to pod state updates for the driver/executors and deleting the pods 
 outside the operator might lead to incorrect metric values for some of these metrics.
+=======
+All configs except `-enable-metrics` are optional. If port and/or endpoint are specified, please ensure that the annotations `prometheus.io/port`,
+ `prometheus.io/path` and `containerPort` in `spark-operator-with-metrics.yaml` are updated as well.
+
+A note about `metrics-labels`: In `Prometheus`, every unique combination of key-value label pair represents a new time series,
+which can dramatically increase the amount of data stored.  Hence labels should not be used to store dimensions with high
+cardinality with potentially a large or unbounded value range.
+
+Additionally, these metrics are best-effort for the current operator run and will be reset on an operator restart.
+Also some of these metrics are generated by listening to pod state updates for the driver/executors
+and deleting the pods outside the operator might lead to incorrect metric values for some of these metrics.
+>>>>>>> 1e7918c89c9e02bf4d656f7af3c3f6653cfc2cdc
 
 ## Configuration
 
@@ -81,27 +126,20 @@ Spark Operator is typically deployed and run using `manifest/spark-operator.yaml
 However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster
 by specifying path to `kubeconfig`, which can be done using the `-kubeconfig` flag.
 
-Spark Operator uses multiple workers in the `SparkApplication` controller, the initializer, and the submission runner.
-The number of worker threads to use in the three places are controlled using command-line flags `-controller-threads`,
-`-initializer-threads` and `-submission-threads`, respectively. The default values for the flags are 10, 10, and 3,
-respectively.
+Spark Operator uses multiple workers in the `SparkApplication` controller and and the submission runner.
+The number of worker threads to use in the three places are controlled using command-line flags `-controller-threads` 
+and `-submission-threads`, respectively. The default values for the flags are 10 and 3, respectively.
 
 Spark Operator enables cache resynchronization so periodically the informers used by the operator will re-list existing
 objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the
 flag `-resync-interval`, with a default value of 30 seconds.
 
-Spark on Kubernetes needs DNS resolution for the FQDN of the driver pod used by executors to connect to the driver. By
-default, Spark Operator checks the presence of `kube-dns` in the cluster and fails fast if it cannot find it. The check 
-can be disabled if desirable by setting the flag `-check-dns=false`.
-
 By default, Spark Operator will install the
 [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/)
 for the custom resources it managers. This can be disabled by setting the flag `-install-crds=false.`.
 
-The initializer is an **optional** component and can be enabled or disabled using the `-enable-initializer` flag, which
-defaults to `true`. Since the initializer is an alpha feature, it won't function in Kubernetes clusters without alpha
-features enabled. In this case, it can be disabled by adding the argument `-enable-initializer=false` to
-[spark-operator.yaml](../manifest/spark-operator.yaml).
+The mutating admission webhook is an **optional** component and can be enabled or disabled using the `-enable-webhook` flag, 
+which defaults to `false`.
 
 By default, Spark Operator will manage custom resource objects of the managed CRD types for the whole cluster.
 It can be configured to manage only the custom resource objects in a specific namespace with the flag `-namespace=<namespace>`
@@ -160,6 +198,7 @@ spec:
   type: Scala
 status:
   appId: spark-pi-2402118027
+  sparkApplicationId: spark-5f4ba921c85ff3f1cb04bef324f9154c9
   applicationState:
     state: COMPLETED
   completionTime: 2018-02-20T23:33:55Z
@@ -199,30 +238,30 @@ This operator branch is built on [Spark 2.2 fork with Kubernetes support](https:
 $ kubectl apply -f examples/spark-pi-py.yaml
 ```
 
-## Using the Initializer
+## Using the Mutating Admission Webhook
 
-The Spark Operator comes with an optional [initializer](design.md#spark-pod-initializer) for customizing Spark driver
-and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps.
-The initializer works independently with or without the [CRD controller](design.md#the-crd-controller). It works by
-looking for certain custom annotations on Spark driver and executor Pods to perform its tasks. The annotations are
-added by the CRD controller automatically based on application specifications in the `SparkApplication`objects.
-Alternatively, to use the initializer without the controller, the needed annotations can be added manually to the driver
-and executor Pods using the following Spark configuration properties when submitting your Spark applications using the
-`spark-submit` script.
+The Spark Operator comes with an optional mutating admission webhook for customizing Spark driver and executor pods based 
+on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting
+pod affinity/anti-affinity.
 
+The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API 
+server and the webhook server running inside the operator. For that, the certificate and key files must be accessible
+by the webhook server and a Kubernetes secret can be used to store the files.
+
+The Spark Operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the 
+certificate and key files into a secret. Running `hack/gencerts.sh` will generate a CA certificate and a certificate
+for the webhook server signed by the CA, and create a secret named `spark-webhook-certs` in namespace `sparkoperator`. 
+This secret will be mounted into the Spark Operator pod.  
+
+With the secret storing the certificate and key files available, run the following command to install the Spark Operator
+with the mutating admission webhook:
+
+```bash
+$ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 ```
---conf spark.kubernetes.driver.annotations.[AnnotationName]=value
---conf spark.kubernetes.executor.annotations.[AnnotationName]=value
-```
 
-Currently the following annotations are supported:
-
-|Annotation|Value|
-| ------------- | ------------- |
-|`sparkoperator.k8s.io/sparkConfigMap`|Name of the Kubernetes ConfigMap storing Spark configuration files (to which `SPARK_CONF_DIR` applies)|
-|`sparkoperator.k8s.io/hadoopConfigMap`|Name of the Kubernetes ConfigMap storing Hadoop configuration files (to which `HADOOP_CONF_DIR` applies)|
-|`sparkoperator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|
-|`sparkoperator.k8s.io/GCPServiceAccount.[SeviceAccountSecretName]`|Mount path of the secret storing GCP service account credentials (typically a JSON key file) named `SeviceAccountSecretName`|
+This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace 
+`sparkoperator`.
 
 ## Build
 
@@ -280,7 +319,7 @@ $ hack/verify-codegen.sh
 To build the Spark Operator, run the following command:
 
 ```bash
-$ go build -o spark-operator
+$ GOOS=linux go build -o spark-operator
 ```
 
 To run unit tests, run the following command:

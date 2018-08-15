@@ -31,10 +31,6 @@ var (
 // SchemeGroupVersion is the group version used to register these objects.
 var SchemeGroupVersion = schema.GroupVersion{Group: sparkoperator.GroupName, Version: "v1alpha1"}
 
-func init() {
-	SchemeBuilder.Register(addDefaultingFunc)
-}
-
 // Resource takes an unqualified resource and returns a Group-qualified GroupResource.
 func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()
@@ -50,8 +46,4 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
-}
-
-func addDefaultingFunc(scheme *runtime.Scheme) error {
-	return RegisterDefaults(scheme)
 }
