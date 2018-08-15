@@ -212,6 +212,15 @@ type SparkApplicationSpec struct {
 	// SubmissionRetryInterval is the unit of intervals in seconds between submission retries.
 	// Optional.
 	SubmissionRetryInterval *int64 `json:"submissionRetryInterval,omitempty"`
+	// This sets the major Python version of the docker
+	// image used to run the driver and executor containers. Can either be 2 or 3, default 2.
+	// Optional.
+	PythonVersion *string `json:"pythonVersion,omitempty"`
+	// This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
+	// For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will
+	// be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set.
+	// Optional.
+	MemoryOverheadFactor *string `json:"memoryOverheadFactor,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -251,6 +260,8 @@ type SparkApplicationStatus struct {
 	// AppId is the application ID that's also added as a label to the SparkApplication object
 	// and driver and executor Pods, and is used to group the objects for the same application.
 	AppID string `json:"appId,omitempty"`
+	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
+	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// SubmissionTime is the time when the application is submitted.
 	SubmissionTime metav1.Time `json:"submissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
@@ -309,6 +320,9 @@ type SparkPodSpec struct {
 	// Memory is the amount of memory to request for the pod.
 	// Optional.
 	Memory *string `json:"memory,omitempty"`
+	// MemoryOverhead is the amount of off-heap memory to allocate in cluster mode, in MiB unless otherwise specified.
+	// Optional.
+	MemoryOverhead *string `json:"memoryOverhead,omitempty"`
 	// Image is the container image to use. Overrides Spec.Image if set.
 	// Optional.
 	Image *string `json:"image,omitempty"`
@@ -333,6 +347,9 @@ type SparkPodSpec struct {
 	// VolumeMounts specifies the volumes listed in ".spec.volumes" to mount into the main container's filesystem.
 	// Optional.
 	VolumeMounts []apiv1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Affinity specifies the affinity/anti-affinity settings for the pod.
+	// Optional.
+	Affinity *apiv1.Affinity `json:"affinity,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -347,6 +364,9 @@ type DriverSpec struct {
 	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
 	// when requesting executor pods from the API server.
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
+	// JavaOptions is a string of extra JVM options to pass to the driver. For instance,
+	// GC settings or other logging.
+	JavaOptions *string `json:"javaOptions,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -358,6 +378,9 @@ type ExecutorSpec struct {
 	// CoreRequest is the physical CPU core request for the executors.
 	// Optional.
 	CoreRequest *string `json:"coreRequest,omitempty"`
+	// JavaOptions is a string of extra JVM options to pass to the executors. For instance,
+	// GC settings or other logging.
+	JavaOptions *string `json:"javaOptions,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.

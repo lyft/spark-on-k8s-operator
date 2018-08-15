@@ -23,12 +23,15 @@ package sparkoperator
 import (
 	internalinterfaces "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io/v1alpha1"
+	v1beta1 "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io/v1beta1"
 )
 
 // Interface provides access to each of this group's versions.
 type Interface interface {
 	// V1alpha1 provides access to shared informers for resources in V1alpha1.
 	V1alpha1() v1alpha1.Interface
+	// V1beta1 provides access to shared informers for resources in V1beta1.
+	V1beta1() v1beta1.Interface
 }
 
 type group struct {
@@ -45,4 +48,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // V1alpha1 returns a new v1alpha1.Interface.
 func (g *group) V1alpha1() v1alpha1.Interface {
 	return v1alpha1.New(g.factory, g.namespace, g.tweakListOptions)
+}
+
+// V1beta1 returns a new v1beta1.Interface.
+func (g *group) V1beta1() v1beta1.Interface {
+	return v1beta1.New(g.factory, g.namespace, g.tweakListOptions)
 }

@@ -64,7 +64,7 @@ func (c *FakeSparkApplications) List(opts v1.ListOptions) (result *v1alpha1.Spar
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.SparkApplicationList{}
+	list := &v1alpha1.SparkApplicationList{ListMeta: obj.(*v1alpha1.SparkApplicationList).ListMeta}
 	for _, item := range obj.(*v1alpha1.SparkApplicationList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
