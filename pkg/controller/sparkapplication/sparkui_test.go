@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -24,8 +25,9 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	"k8s.io/spark-on-k8s-operator/pkg/config"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 func TestCreateSparkUIService(t *testing.T) {
@@ -96,6 +98,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			SparkApplicationID: "foo-1",
+			Attempts:           1,
 		},
 	}
 	app2 := &v1alpha1.SparkApplication{
@@ -106,6 +109,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			SparkApplicationID: "foo-2",
+			Attempts:           2,
 		},
 	}
 	app3 := &v1alpha1.SparkApplication{
@@ -128,7 +132,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with custom port",
 			app:  app1,
 			expectedService: SparkService{
-				serviceName: app1.GetName() + "-ui-svc",
+				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
 				servicePort: 4041,
 			},
 			expectedSelector: map[string]string{
@@ -141,7 +145,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with default port",
 			app:  app2,
 			expectedService: SparkService{
-				serviceName: app1.GetName() + "-ui-svc",
+				serviceName: fmt.Sprintf("%s-ui-svc", app2.GetName()),
 				servicePort: int32(defaultPort),
 			},
 			expectedSelector: map[string]string{
@@ -184,11 +188,11 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	ingressFormat := "{{$appName}}.ingress.clusterName.com"
 
 	expectedIngress := SparkIngress{
-		ingressName: app.GetName() + "-ui-ingress",
+		ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
 		ingressUrl:  app.GetName() + ".ingress.clusterName.com",
 	}
 	fakeClient := fake.NewSimpleClientset()
-	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient.Extensions())
+	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
 	if err != nil {
 		t.Fatal(err)
 	}

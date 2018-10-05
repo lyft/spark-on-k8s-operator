@@ -28,13 +28,11 @@ spec:
     matchLabels:
       app.kubernetes.io/name: sparkoperator
       app.kubernetes.io/version: v2.2.0
+
   strategy:
     type: Recreate
   template:
     metadata:
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "10254"
       labels:
         app.kubernetes.io/name: sparkoperator
         app.kubernetes.io/version: v2.2.0

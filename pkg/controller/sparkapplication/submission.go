@@ -24,9 +24,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/util"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 const (
@@ -94,6 +94,9 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 			fmt.Sprintf("%s=%s", config.SparkMemoryOverheadFactor, *app.Spec.MemoryOverheadFactor))
 	}
 
+	// Operator triggered spark-submit should never wait for App completion
+	args = append(args, "--conf", fmt.Sprintf("%s=false", config.SparkWaitAppCompletion))
+
 	if app.Spec.SparkConfigMap != nil {
 		args = append(args, "--conf", config.GetDriverAnnotationOption(config.SparkConfigMapAnnotation,
 			*app.Spec.SparkConfigMap))
@@ -108,14 +111,10 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 			*app.Spec.HadoopConfigMap))
 	}
 
-	if app.Spec.SparkConf != nil {
-		// Add Spark configuration properties.
-		for key, value := range app.Spec.SparkConf {
-			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
-		}
+	// Add Spark configuration properties.
+	for key, value := range app.Spec.SparkConf {
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
 	}
-	// Operator triggered spark-submit should never wait for App completion
-	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkWaitAppCompletion, "false"))
 
 	// Add Hadoop configuration properties.
 	for key, value := range app.Spec.HadoopConf {
