@@ -20,7 +20,7 @@ RUN apk update && apk add bash git
 ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
 RUN chmod +x /usr/bin/dep
 
-WORKDIR ${GOPATH}/src/k8s.io/spark-on-k8s-operator
+WORKDIR ${GOPATH}/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
 COPY Gopkg.toml Gopkg.lock ./
 RUN dep ensure -vendor-only
 COPY . ./
@@ -29,4 +29,8 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 FROM kubespark/spark-base:v2.2.0-kubernetes-0.5.0
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
+RUN apk add --update openssl && rm -rf /var/cache/apk/*
+RUN apk add --update curl && rm -rf /var/cache/apk/*
+COPY hack/gencerts.sh /usr/bin/
+COPY hack/delete-resource.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/spark-operator"]
