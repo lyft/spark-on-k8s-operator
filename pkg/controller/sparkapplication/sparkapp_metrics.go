@@ -30,10 +30,11 @@ type sparkAppMetrics struct {
 	labels []string
 	prefix string
 
-	sparkAppSubmitCount  *prometheus.CounterVec
-	sparkAppSuccessCount *prometheus.CounterVec
-	sparkAppFailureCount *prometheus.CounterVec
-	sparkAppRunningCount *util.PositiveGauge
+	sparkAppSubmitCount            *prometheus.CounterVec
+	sparkAppSuccessCount           *prometheus.CounterVec
+	sparkAppFailureCount           *prometheus.CounterVec
+	sparkAppSubmissionFailureCount *prometheus.CounterVec
+	sparkAppRunningCount           *util.PositiveGauge
 
 	sparkAppSuccessExecutionTime *prometheus.SummaryVec
 	sparkAppFailureExecutionTime *prometheus.SummaryVec
@@ -67,6 +68,13 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_failure_count"),
 			Help: "Spark App Failure Count via the Operator",
+		},
+		validLabels,
+	)
+	sparkAppSubmissionFailureCount := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_submission_failure_count"),
+			Help: "Spark App Submission Failure Count via the Operator",
 		},
 		validLabels,
 	)
@@ -104,17 +112,18 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		"spark_app_executor_running_count"), "Spark App Running Executor Count via the Operator", validLabels)
 
 	return &sparkAppMetrics{
-		labels:                       validLabels,
-		prefix:                       prefix,
-		sparkAppSubmitCount:          sparkAppSubmitCount,
-		sparkAppSuccessCount:         sparkAppSuccessCount,
-		sparkAppFailureCount:         sparkAppFailureCount,
-		sparkAppRunningCount:         sparkAppRunningCount,
-		sparkAppSuccessExecutionTime: sparkAppSuccessExecutionTime,
-		sparkAppFailureExecutionTime: sparkAppFailureExecutionTime,
-		sparkAppExecutorRunningCount: sparkAppExecutorRunningCount,
-		sparkAppExecutorFailureCount: sparkAppExecutorFailureCount,
-		sparkAppExecutorSuccessCount: sparkAppExecutorSuccessCount,
+		labels:                         validLabels,
+		prefix:                         prefix,
+		sparkAppSubmitCount:            sparkAppSubmitCount,
+		sparkAppSuccessCount:           sparkAppSuccessCount,
+		sparkAppFailureCount:           sparkAppFailureCount,
+		sparkAppSubmissionFailureCount: sparkAppSubmissionFailureCount,
+		sparkAppRunningCount:           sparkAppRunningCount,
+		sparkAppSuccessExecutionTime:   sparkAppSuccessExecutionTime,
+		sparkAppFailureExecutionTime:   sparkAppFailureExecutionTime,
+		sparkAppExecutorRunningCount:   sparkAppExecutorRunningCount,
+		sparkAppExecutorFailureCount:   sparkAppExecutorFailureCount,
+		sparkAppExecutorSuccessCount:   sparkAppExecutorSuccessCount,
 	}
 }
 
@@ -122,6 +131,7 @@ func (sm *sparkAppMetrics) registerMetrics() {
 	util.RegisterMetric(sm.sparkAppSubmitCount)
 	util.RegisterMetric(sm.sparkAppSuccessCount)
 	util.RegisterMetric(sm.sparkAppFailureCount)
+	util.RegisterMetric(sm.sparkAppSubmissionFailureCount)
 	util.RegisterMetric(sm.sparkAppSuccessExecutionTime)
 	util.RegisterMetric(sm.sparkAppFailureExecutionTime)
 	util.RegisterMetric(sm.sparkAppExecutorFailureCount)
@@ -168,7 +178,13 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 				m.Inc()
 			}
 		}
-	case v1alpha1.FailingState, v1alpha1.FailedSubmissionState:
+	case v1alpha1.FailedSubmissionState:
+		if m, err := sm.sparkAppSubmissionFailureCount.GetMetricWith(metricLabels); err != nil {
+			glog.Errorf("Error while exporting metrics: %v", err)
+		} else {
+			m.Inc()
+		}
+	case v1alpha1.FailingState:
 		if oldState != newState {
 			if !newApp.Status.SubmissionTime.Time.IsZero() && !newApp.Status.CompletionTime.Time.IsZero() {
 				d := newApp.Status.CompletionTime.Time.Sub(newApp.Status.SubmissionTime.Time)

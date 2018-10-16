@@ -53,6 +53,7 @@ If enabled, the operator generates the following metrics:
 | `spark_app_submit_count`  | Total number of SparkApplication submitted by the Operator.|
 | `spark_app_success_count` | Total number of SparkApplication which completed successfully.|
 | `spark_app_failure_count` | Total number of SparkApplication which failed to complete. |
+| `spark_app_submission_failure_count` | Total number of SparkApplication attempts which failed submission. |
 | `spark_app_running_count` | Total number of SparkApplication which are currently running.|
 | `spark_app_success_execution_time_microseconds` | Execution time for applications which succeeded.|
 | `spark_app_failure_execution_time_microseconds` |Execution time for applications which failed. |

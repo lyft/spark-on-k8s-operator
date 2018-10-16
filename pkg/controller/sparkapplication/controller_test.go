@@ -258,7 +258,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
-	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppSubmissionFailureCount, map[string]string{}))
 
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))

@@ -60,8 +60,8 @@ const (
 	sparkExecutorRole         = "executor"
 	sparkExecutorIDLabel      = "spark-exec-id"
 	podAlreadyExistsErrorCode = "code=409"
-	queueTokenRefillRate      = 25
-	queueTokenBucketSize      = 1000
+	queueTokenRefillRate      = 50
+	queueTokenBucketSize      = 500
 )
 
 var (
@@ -257,7 +257,6 @@ func (c *Controller) processNextItem() bool {
 type driverState struct {
 	podName            string         // Name of the driver pod.
 	sparkApplicationID string         // sparkApplicationID.
-	nodeName           string         // Name of the node the driver pod runs on.
 	podPhase           apiv1.PodPhase // Driver pod phase.
 	completionTime     metav1.Time    // Time the driver completes.
 }
@@ -279,7 +278,6 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 		if isDriverPod(pod) {
 			currentDriverState = &driverState{
 				podName:            pod.Name,
-				nodeName:           pod.Spec.NodeName,
 				podPhase:           pod.Status.Phase,
 				sparkApplicationID: getSparkApplicationID(pod),
 			}
@@ -301,12 +299,6 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 				app.Status.DriverInfo.PodName = currentDriverState.podName
 			}
 			app.Status.SparkApplicationID = currentDriverState.sparkApplicationID
-			if currentDriverState.nodeName != "" {
-				if nodeIP := c.getNodeExternalIP(currentDriverState.nodeName); nodeIP != "" {
-					app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
-						app.Status.DriverInfo.WebUIPort)
-				}
-			}
 			app.Status.AppState.State = newAppState
 			if app.Status.CompletionTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.CompletionTime = currentDriverState.completionTime
@@ -653,7 +645,6 @@ func (c *Controller) deleteSparkResources(app *v1alpha1.SparkApplication, delete
 		}
 	}
 
-	// TODO: Right now, we need to delete UI Service/Ingress since we create a NodePort service-type. Remove this if we migrate to only have Ingress based UI.
 	if deleteUI && app.Status.DriverInfo.WebUIServiceName != "" {
 		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
 			metav1.NewDeleteOptions(0))
@@ -716,21 +707,6 @@ func (c *Controller) dequeue(obj interface{}) {
 
 	c.queue.Forget(key)
 	c.queue.Done(key)
-}
-
-func (c *Controller) getNodeExternalIP(nodeName string) string {
-	node, err := c.kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-	if err != nil {
-		glog.Errorf("failed to get node %s", nodeName)
-		return ""
-	}
-
-	for _, address := range node.Status.Addresses {
-		if address.Type == apiv1.NodeExternalIP {
-			return address.Address
-		}
-	}
-	return ""
 }
 
 func (c *Controller) recordSparkApplicationEvent(app *v1alpha1.SparkApplication) {
