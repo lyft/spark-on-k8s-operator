@@ -124,7 +124,7 @@ func createSparkUIService(
 				config.SparkAppNameLabel: app.Name,
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
-			Type: apiv1.ServiceTypeNodePort,
+			Type: apiv1.ServiceTypeClusterIP,
 		},
 	}
 
@@ -137,7 +137,7 @@ func createSparkUIService(
 	return &SparkService{
 		serviceName: service.Name,
 		servicePort: int32(port),
-		nodePort:    service.Spec.Ports[0].NodePort,
+		nodePort:    service.Spec.Ports[0].Port,
 	}, nil
 }
 
