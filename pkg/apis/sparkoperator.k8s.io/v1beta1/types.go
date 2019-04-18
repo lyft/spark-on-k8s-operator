@@ -45,7 +45,7 @@ const (
 // RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
 // This completely defines actions to be taken on any kind of Failures during an application run.
 type RestartPolicy struct {
-	Type RestartPolicyType `json:"type,omitempty""`
+	Type RestartPolicyType `json:"type,omitempty"`
 
 	// FailureRetries are the number of times to retry a failed application before giving up in a particular case.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.
@@ -239,6 +239,9 @@ type SparkApplicationSpec struct {
 	// Monitoring configures how monitoring is handled.
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
+	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+	// submission Job Pod that runs spark-submit to submit an application.
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -246,22 +249,24 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = ""
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRerunState     ApplicationStateType = "PENDING_RERUN"
-	InvalidatingState     ApplicationStateType = "INVALIDATING"
-	SucceedingState       ApplicationStateType = "SUCCEEDING"
-	FailingState          ApplicationStateType = "FAILING"
+	NewState               ApplicationStateType = ""
+	PendingSubmissionState ApplicationStateType = "PENDING_SUBMISSION" // Submission job created.
+	SubmittedState         ApplicationStateType = "SUBMITTED"          // Submission job succeeded.
+	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission command/job creation failed.
+	RunningState           ApplicationStateType = "RUNNING"            // Application is running.
+	CompletedState         ApplicationStateType = "COMPLETED"          // Application completed.
+	FailedState            ApplicationStateType = "FAILED"             // Application failed or submission job failed.
+	PendingRerunState      ApplicationStateType = "PENDING_RERUN"      // Application is pending being rerun.
+	InvalidatingState      ApplicationStateType = "INVALIDATING"       // Application spec has been updated and re-run is due.
+	SucceedingState        ApplicationStateType = "SUCCEEDING"         // Application succeeded but might be subject to restart.
+	FailingState           ApplicationStateType = "FAILING"            // Application failed but might be subject to restart.
+	UnknownState           ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
 type ApplicationState struct {
 	State        ApplicationStateType `json:"state"`
-	ErrorMessage string               `json:"errorMessage"`
+	ErrorMessage string               `json:"errorMessage,omitempty"`
 }
 
 // ExecutorState tells the current state of an executor.
@@ -280,10 +285,12 @@ const (
 type SparkApplicationStatus struct {
 	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
-	// LastSubmissionAttemptTime is the time for the last application submission attempt.
-	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	// SubmissionID is a unique ID of the current submission of the application.
+	SubmissionID string `json:"submissionID,omitempty"`
+	// SubmissionTime is the time the application is submitted.
+	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
-	CompletionTime metav1.Time `json:"completionTime,omitempty"`
+	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
 	// AppState tells the overall application state.
@@ -373,6 +380,12 @@ type SparkPodSpec struct {
 	// Tolerations specifies the tolerations listed in ".spec.tolerations" to be applied to the pod.
 	// Optional.
 	Tolerations []apiv1.Toleration `json:"tolerations,omitempty"`
+	// SecurityContenxt specifies the PodSecurityContext to apply.
+	// Optional.
+	SecurityContenxt *apiv1.PodSecurityContext `json:"securityContext,omitempty"`
+	// SchedulerName specifies the scheduler that will be used for scheduling
+	// Optional.
+	SchedulerName *string `json:"schedulerName,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -477,8 +490,12 @@ type PrometheusSpec struct {
 	// Optional.
 	// If not specified, 8090 will be used as the default.
 	Port *int32 `json:"port"`
+	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
+	// ConfigFile takes precedence over Configuration, which is shown below.
+	ConfigFile *string `json:"configFile,omitempty"`
 	// Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter.
 	// Optional.
 	// If not specified, the content in spark-docker/conf/prometheus.yaml will be used.
-	Configuration *string `json:"configuration"`
+	// Configuration has no effect if ConfigFile is set.
+	Configuration *string `json:"configuration,omitempty"`
 }
