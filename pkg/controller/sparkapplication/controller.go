@@ -301,6 +301,8 @@ type driverState struct {
 	nodeName           string         // Name of the node the driver pod runs on.
 	podPhase           apiv1.PodPhase // Driver pod phase.
 	completionTime     metav1.Time    // Time the driver completes.
+	err                error          // Error if any found.
+
 }
 
 func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha1.SparkApplicationStatus {
@@ -326,6 +328,15 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
 			}
+			// Fetch container ExitCode/Reason if Pod Failed.
+			if pod.Status.Phase == apiv1.PodFailed {
+				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
+					terminatedState := pod.Status.ContainerStatuses[0].State.Terminated
+					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+				} else {
+					currentDriverState.err = fmt.Errorf("driver container status missing.")
+				}
+			}
 			c.recordDriverEvent(app, pod.Status.Phase, pod.Name)
 		}
 		if isExecutorPod(pod) {
@@ -334,6 +345,8 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 			if executorApplicationID == "" {
 				executorApplicationID = getSparkApplicationID(pod)
 			}
+
+			break
 		}
 	}
 
@@ -354,6 +367,10 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 			}
 		} else {
 			glog.Warningf("invalid driver state for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+		}
+		// Expose any errors to the users.
+		if currentDriverState.err != nil {
+			app.Status.AppState.ErrorMessage = currentDriverState.err.Error()
 		}
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
