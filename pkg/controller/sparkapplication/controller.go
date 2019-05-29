@@ -345,8 +345,6 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 			if executorApplicationID == "" {
 				executorApplicationID = getSparkApplicationID(pod)
 			}
-
-			break
 		}
 	}
 
