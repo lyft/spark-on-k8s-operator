@@ -69,6 +69,7 @@ var (
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
+	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 )
 
 func main() {
@@ -157,15 +158,26 @@ func main() {
 
 	var hook *webhook.WebHook
 	if *enableWebhook {
+		var coreV1InformerFactory informers.SharedInformerFactory
+		if *enableResourceQuotaEnforcement {
+			coreV1InformerFactory = buildCoreV1InformerFactory(kubeClient)
+		}
 		var err error
 		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, *enableResourceQuotaEnforcement, coreV1InformerFactory)
 		if err != nil {
 			glog.Fatal(err)
 		}
-		if err = hook.Start(); err != nil {
+
+		if *enableResourceQuotaEnforcement {
+			go coreV1InformerFactory.Start(stopCh)
+		}
+
+		if err = hook.Start(stopCh); err != nil {
 			glog.Fatal(err)
 		}
+	} else if *enableResourceQuotaEnforcement {
+		glog.Fatal("Webhook must be enabled to use resource quota enforcement.")
 	}
 
 	if *enableLeaderElection {
@@ -245,4 +257,12 @@ func buildInformerFactory(kubeClient clientset.Interface) informers.SharedInform
 	}
 	factoryOpts = append(factoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
 	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, factoryOpts...)
+}
+
+func buildCoreV1InformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
+	var coreV1FactoryOpts []informers.SharedInformerOption
+	if *namespace != apiv1.NamespaceAll {
+		coreV1FactoryOpts = append(coreV1FactoryOpts, informers.WithNamespace(*namespace))
+	}
+	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, coreV1FactoryOpts...)
 }
