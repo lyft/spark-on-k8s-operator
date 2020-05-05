@@ -149,8 +149,7 @@ func main() {
 	}
 
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)
-
-	podInformerFactory := buildPodInformerFactory(kubeClient)
+	informerFactory := buildInformerFactory(kubeClient)
 
 	// Start the informer factory that in turn starts the informer.
 	go crInformerFactory.Start(stopCh)
@@ -199,7 +198,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat)
+		crClient, kubeClient, crInformerFactory, informerFactory, metricConfig, *namespace, *ingressURLFormat)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
