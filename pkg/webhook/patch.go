@@ -32,9 +32,7 @@ import (
 )
 
 const (
-	sparkDriverContainerName   = "spark-kubernetes-driver"
-	sparkExecutorContainerName = "executor"
-	maxNameLength              = 63
+	maxNameLength = 63
 )
 
 // patchOperation represents a RFC6902 JSON patch operation.
@@ -73,12 +71,11 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 		}
 	}
 
-	if pod.Spec.SecurityContext == nil {
-		op := addSecurityContext(pod, app)
-		if op != nil {
-			patchOps = append(patchOps, *op)
-		}
+	op = addSecurityContext(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
 	}
+
 	op = addGPU(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
@@ -143,8 +140,8 @@ func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) patchOperation {
 	i := 0
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
-		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
-			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
+		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName ||
+			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
 			break
 		}
 	}
@@ -165,8 +162,8 @@ func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) patchOper
 	i := 0
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
-		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
-			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
+		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName ||
+			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
 			break
 		}
 	}
@@ -415,8 +412,8 @@ func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
 	i := 0
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
-		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
-			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
+		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName ||
+			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
 			break
 		}
 	}

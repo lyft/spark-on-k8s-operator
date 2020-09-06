@@ -18,20 +18,38 @@ package crd
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/golang/glog"
 
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	ssacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
+	sacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/sparkapplication"
 )
 
-func CreateOrUpdateCRD(
+// CreateOrUpdateCRDs creates or updates the relevant CRDs used by the operator.
+func CreateOrUpdateCRDs(clientset apiextensionsclient.Interface) error {
+	err := createOrUpdateCRD(clientset, sacrd.GetCRD())
+	if err != nil {
+		return fmt.Errorf("failed to create or update CustomResourceDefinition %s: %v", sacrd.FullName, err)
+	}
+
+	err = createOrUpdateCRD(clientset, ssacrd.GetCRD())
+	if err != nil {
+		return fmt.Errorf("failed to create or update CustomResourceDefinition %s: %v", ssacrd.FullName, err)
+	}
+
+	return nil
+}
+
+func createOrUpdateCRD(
 	clientset apiextensionsclient.Interface,
 	definition *apiextensionsv1beta1.CustomResourceDefinition) error {
 	existing, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(definition.Name,
@@ -43,7 +61,7 @@ func CreateOrUpdateCRD(
 
 	if err == nil && existing != nil {
 		// Update case.
-		if !reflect.DeepEqual(existing.Spec, definition.Spec) {
+		if !equality.Semantic.DeepEqual(existing.Spec, definition.Spec) {
 			existing.Spec = definition.Spec
 			glog.Infof("Updating CustomResourceDefinition %s", definition.Name)
 			if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(existing); err != nil {
