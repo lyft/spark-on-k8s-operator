@@ -104,7 +104,9 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 	}
 	if s.app.Spec.ServiceAccount != nil {
 		job.Spec.Template.Spec.ServiceAccountName = *s.app.Spec.ServiceAccount
-	}
+	} else if s.app.Spec.Driver.ServiceAccount != nil {
+                job.Spec.Template.Spec.ServiceAccountName = *s.app.Spec.Driver.ServiceAccount
+        }
 	// Copy the labels on the SparkApplication to the Job.
 	for key, val := range s.app.Labels {
 		job.Labels[key] = val
