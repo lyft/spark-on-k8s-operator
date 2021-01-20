@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -56,6 +57,8 @@ type realSubmissionJobManager struct {
 }
 
 func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkApplication) (string, string, error) {
+	glog.Info("Creating the submission job --M")
+
 	var image string
 	if app.Spec.Image != nil {
 		image = *app.Spec.Image
