@@ -696,6 +696,8 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
+	glog.Infof("hiiiiii -M")
+
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID:       submissionID,
 		DriverInfo:         v1beta2.DriverInfo{PodName: driverPodName},

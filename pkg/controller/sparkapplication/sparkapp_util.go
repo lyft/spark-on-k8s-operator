@@ -26,6 +26,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/golang/glog"
 )
 
 // Helper method to create a key with namespace and appName
@@ -52,6 +53,9 @@ func getDriverPodName(app *v1beta2.SparkApplication) string {
 	if sparkConf[config.SparkDriverPodNameKey] != "" {
 		return sparkConf[config.SparkDriverPodNameKey]
 	}
+
+	f := fmt.Sprintf("%s-driver", app.Name)
+	glog.Infof("the driver name is %s", f)
 
 	return fmt.Sprintf("%s-driver", app.Name)
 }
@@ -174,5 +178,10 @@ func printStatus(status *v1beta2.SparkApplicationStatus) (string, error) {
 }
 
 func getSubmissionJobName(app *v1beta2.SparkApplication) string {
+	glog.Infof("in submission job name ")
+	switch {
+	case app.Spec.Mode == v1beta2.ClientMode:
+		return getDriverPodName(app)
+	}
 	return app.Name + "-spark-submit"
 }
