@@ -16,11 +16,15 @@ limitations under the License.
 
 package v1beta2
 
+import "github.com/golang/glog"
+
 // SetSparkApplicationDefaults sets default values for certain fields of a SparkApplication.
 func SetSparkApplicationDefaults(app *SparkApplication) {
 	if app == nil {
 		return
 	}
+
+	glog.Infof("the mode is %s", app.Spec.Mode)
 
 	if app.Spec.Mode == "" {
 		app.Spec.Mode = ClusterMode

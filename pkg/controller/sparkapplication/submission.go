@@ -30,6 +30,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/golang/glog"
 )
 
 const (
@@ -38,6 +39,7 @@ const (
 )
 
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
+	glog.Info("building submission args ")
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -56,6 +58,8 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 
 	// Add application dependencies.
 	args = append(args, addDependenciesConfOptions(app)...)
+
+	args = append(args, "-c sleep inifnity")
 
 	if app.Spec.Image != nil {
 		args = append(args, "--conf",
@@ -81,8 +85,13 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	// Operator triggered spark-submit should never wait for App completion
 	args = append(args, "--conf", fmt.Sprintf("%s=false", config.SparkWaitAppCompletion))
 
+	//glog.Infof("the spark driver bind address is %s", os.Getenv("SPARK_DRIVER_BIND_ADDRESS"))
+	//glog.Infof("the spark k8s diver pod ip address is %s", os.Getenv("SPARK_K8S_DRIVER_POD_IP"))
+	//glog.Infof("the spark local ip  address is %s", os.Getenv("SPARK_LOCAL_IP"))
+
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
+		glog.Info("adding spark conf")
 		// Configuration property for the driver pod name has already been set.
 		if key != config.SparkDriverPodNameKey {
 			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
@@ -142,11 +151,16 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 }
 
 func getMasterURL() (string, error) {
+
 	kubernetesServiceHost := os.Getenv(kubernetesServiceHostEnvVar)
+	glog.Infof("the kubernetes service host is %s", kubernetesServiceHost)
+
 	if kubernetesServiceHost == "" {
 		return "", fmt.Errorf("environment variable %s is not found", kubernetesServiceHostEnvVar)
 	}
 	kubernetesServicePort := os.Getenv(kubernetesServicePortEnvVar)
+	glog.Infof("the kubernetes service port is %s", kubernetesServicePort)
+
 	if kubernetesServicePort == "" {
 		return "", fmt.Errorf("environment variable %s is not found", kubernetesServicePortEnvVar)
 	}

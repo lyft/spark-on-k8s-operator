@@ -28,7 +28,7 @@ spec:
   sparkVersion: "2.4.5"
   restartPolicy:
     type: Never
-  serviceAccount: spark  
+  serviceAccount: spark
   volumes:
     - name: "test-volume"
       hostPath:

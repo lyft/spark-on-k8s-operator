@@ -18,6 +18,8 @@ package sparkapplication
 
 import (
 	"fmt"
+	"net"
+	"os"
 	"strings"
 
 	"github.com/golang/glog"
@@ -71,11 +73,44 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 	}
 
 	driverPodName := getDriverPodName(app)
+	glog.Infof("The driver name is ", driverPodName)
+
 	submissionID := uuid.New().String()
+	glog.Infof("The submissionId is ", submissionID)
+	glog.Infof("The app name  is %s", app.Name)
+
+	if app.Spec.SparkConf == nil {
+		app.Spec.SparkConf = make(map[string]string)
+	}
+
+	ipAddress := getIPAddress()
+	glog.Infof("the ip address is %s", ipAddress)
+
+	//app.Spec.SparkConf["spark.driver.bindAddress"] = ipAddress
+	//app.Spec.SparkConf["spark.driver.host"] = ipAddress
+
+	app.Spec.SparkConf["spark.driver.bindAddress"] = "127.0.0.1"
+	app.Spec.SparkConf["spark.driver.host"] = "127.0.0.1"
+
+	//if app.Spec.Mode == v1beta2.ClientMode {
+	//	glog.Info("its in client mode --M")
+	//
+	//	if app.Spec.SparkConf == nil {
+	//		app.Spec.SparkConf = make(map[string]string)
+	//	}
+	//
+	//	ipAddress := getIPAddress()
+	//	glog.Infof("the ip address is %s", ipAddress)
+	//
+	//	app.Spec.SparkConf["spark.driver.host"] = ipAddress
+	//}
+
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
 	if err != nil {
 		return "", "", err
 	}
+
+	//command := []string{"sh", "-c", "sleep infinity "))}
 
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 	var one int32 = 1
@@ -136,7 +171,10 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 			},
 		},
 	}
+
 	if app.Spec.ServiceAccount != nil {
+		glog.Info("service accoung not null --M")
+
 		job.Spec.Template.Spec.ServiceAccountName = *app.Spec.ServiceAccount
 	} else if app.Spec.Driver.ServiceAccount != nil {
 		// User driver service-account if not set at Spec level.
@@ -146,11 +184,34 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 	for key, val := range app.Labels {
 		job.Labels[key] = val
 	}
+
+	glog.Infof("the job name is %s", job.Name)
+	glog.Infof("its not appended yet --")
+
 	_, err = sjm.kubeClient.BatchV1().Jobs(app.Namespace).Create(job)
 	if err != nil {
 		return "", "", err
 	}
 	return submissionID, driverPodName, nil
+}
+
+func getIPAddress() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		os.Stderr.WriteString("Oops: " + err.Error() + "\n")
+		os.Exit(1)
+	}
+
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				glog.Infof("%s \n", ipnet.IP.String())
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
+
 }
 
 func (sjm *realSubmissionJobManager) getSubmissionJob(app *v1beta2.SparkApplication) (*batchv1.Job, error) {

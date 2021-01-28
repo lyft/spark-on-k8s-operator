@@ -179,7 +179,10 @@ func getSubmissionJobName(app *v1beta2.SparkApplication) string {
 
 	switch {
 	case app.Spec.Mode == v1beta2.ClientMode:
+		glog.Info("in client mode")
 		return getDriverPodName(app)
 	}
+	glog.Info("setting the name with spark -submit --M")
+
 	return app.Name + "-spark-submit"
 }

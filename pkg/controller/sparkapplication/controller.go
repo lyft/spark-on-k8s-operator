@@ -183,7 +183,7 @@ func (c *Controller) Stop() {
 // Callback function called when a new SparkApplication object gets created.
 func (c *Controller) onAdd(obj interface{}) {
 	app := obj.(*v1beta2.SparkApplication)
-	glog.Infof("SparkApplication %s/%s was added, ENQUEINGGGGGG it for submission", app.Namespace, app.Name)
+	glog.Infof("SparkApplication %s/%s was added, enqueuing it for submission", app.Namespace, app.Name)
 	c.enqueue(app)
 }
 
@@ -291,6 +291,7 @@ func (c *Controller) getExecutorPods(app *v1beta2.SparkApplication) ([]*apiv1.Po
 }
 
 func (c *Controller) getDriverPod(app *v1beta2.SparkApplication) (*apiv1.Pod, error) {
+	glog.Info("trying to get driver pod -- M")
 	pod, err := c.podLister.Pods(app.Namespace).Get(app.Status.DriverInfo.PodName)
 	if err == nil {
 		return pod, nil
@@ -314,6 +315,8 @@ func (c *Controller) getDriverPod(app *v1beta2.SparkApplication) (*apiv1.Pod, er
 // getAndUpdateDriverState finds the driver pod of the application
 // and updates the driver state based on the current phase of the pod.
 func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) error {
+	glog.Info("updating the driver state --M")
+
 	// Either the driver pod doesn't exist yet or its name has not been updated.
 	if app.Status.DriverInfo.PodName == "" {
 		return fmt.Errorf("empty driver pod name with application state %s", app.Status.AppState.State)
@@ -672,7 +675,14 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
+	glog.Infof("goes into create submission in job.go")
 	submissionID, driverPodName, err := c.subJobManager.createSubmissionJob(app)
+	glog.Infof("out of create submission in job.go")
+
+	//glog.Infof("the spark driver bind address is %s", os.Getenv("SPARK_DRIVER_BIND_ADDRESS"))
+	//glog.Infof("the spark k8s diver pod ip address is %s", os.Getenv("SPARK_K8S_DRIVER_POD_IP"))
+	//glog.Infof("the spark local ip  address is %s", os.Getenv("SPARK_LOCAL_IP"))
+
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			app.Status = v1beta2.SparkApplicationStatus{
@@ -687,8 +697,9 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		return app
 	}
 
-	glog.Infof("hiiiii")
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
+	glog.Infof("the ap name is %s", app.Name)
+	glog.Infof("the app UID is %s", app.UID)
 
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID:       submissionID,
@@ -704,6 +715,8 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 }
 
 func (c *Controller) createSparkUIResources(app *v1beta2.SparkApplication) {
+	glog.Info("in create spark ui resources")
+
 	service, err := createSparkUIService(app, c.kubeClient)
 	if err != nil {
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -924,7 +937,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationAdded",
-			"SparkApplication %s was added, enqueuing IT FOR submission",
+			"SparkApplication %s was added, enqueuing it FOR submission",
 			app.Name)
 	case v1beta2.PendingSubmissionState:
 		c.recorder.Eventf(
