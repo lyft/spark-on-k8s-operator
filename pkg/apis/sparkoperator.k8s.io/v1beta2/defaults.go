@@ -24,7 +24,7 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		return
 	}
 
-	glog.Info("the cluster mode is %s --v1beta2", app.Spec.Mode)
+	glog.Info("the cluster mode iss %s --v1beta2", app.Spec.Mode)
 	if app.Spec.Mode == "" {
 		app.Spec.Mode = ClusterMode
 	}
