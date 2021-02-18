@@ -117,7 +117,7 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 		clientDriver.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
 	}
 
-	// Copy the labels on the SparkApplication to the Job.
+	// Copy the labels on the SparkApplication to the driver pod.
 	for key, val := range app.Labels {
 		clientDriver.Labels[key] = val
 	}

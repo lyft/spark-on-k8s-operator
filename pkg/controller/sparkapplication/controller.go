@@ -104,7 +104,6 @@ func newSparkApplicationController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
-	//podInformerFactory informers.SharedInformerFactory,
 	informerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
@@ -122,9 +121,6 @@ func newSparkApplicationController(
 		batchSchedulerMgr: batchSchedulerMgr,
 		subJobManager:     &realSubmissionJobManager{kubeClient: kubeClient},
 		clientSubManager:  &realClientSubmissionPodManager{kubeClient: kubeClient},
-
-		//should i remove this or keep it?
-		//subJobManager:     &realSubmissionJobManager{kubeClient: kubeClient},
 	}
 
 	if metricsConfig != nil {
@@ -155,7 +151,6 @@ func newSparkApplicationController(
 		UpdateFunc: sparkObjectEventHandler.onObjectUpdated,
 		DeleteFunc: sparkObjectEventHandler.onObjectDeleted,
 	})
-
 	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobInformer.Lister()}
 	controller.clientSubManager = &realClientSubmissionPodManager{kubeClient: kubeClient, podLister: podsInformer.Lister()}
 
@@ -355,21 +350,10 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 			} else {
 				app.Status.AppState.ErrorMessage = "driver container status missing"
 			}
-			// Fetch container ExitCode/Reason if Pod Failed.
-			//committing this for build failure and idk what this is for anyway
-			//if pod.Status.Phase == apiv1.PodFailed {
-			//	if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
-			//		currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", pod.Status.ContainerStatuses[0].State.Terminated.ExitCode, pod.Status.ContainerStatuses[0].State.Terminated.Reason)
-			//	} else {
-			//		currentDriverState.err = fmt.Errorf("driver container status missing.")
-			//	}
-			//}
 		}
 	}
 
 	newState := driverStateToApplicationState(driverState)
-	glog.Infof("the new state is %s", newState)
-	glog.Infof("the app.status.appstate.state is %s", app.Status.AppState.State)
 
 	// Only record a driver event if the application state (derived from the driver pod phase) has changed.
 	if newState != app.Status.AppState.State {
@@ -538,7 +522,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
 	case v1beta2.NewState:
-		glog.Info("new state!")
 		c.recordSparkApplicationEvent(appToUpdate)
 		if err := c.validateSparkApplication(appToUpdate); err != nil {
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
@@ -546,45 +529,42 @@ func (c *Controller) syncSparkApplication(key string) error {
 		} else {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
-		//thinking i can get rid of this pending submission state
-	//case v1beta2.PendingSubmissionState:
-	//	// Check the status of the submission Job and set the application status accordingly.
-	//	succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
-	//
-	//	if succeeded != nil {
-	//		// Submission Job terminated in either success or failure.
-	//		if *succeeded {
-	//			c.createSparkUIResources(appToUpdate)
-	//			appToUpdate.Status.AppState.State = v1beta2.SubmittedState
-	//			appToUpdate.Status.ExecutionAttempts++
-	//			if completionTime != nil {
-	//				appToUpdate.Status.SubmissionTime = *completionTime
-	//			}
-	//			c.recordSparkApplicationEvent(appToUpdate)
-	//		} else {
-	//			// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
-	//			// submission Job failed means all the submission attempts failed. So we set the application
-	//			// state to FailedSubmission, which is a terminal state.
-	//			appToUpdate.Status.AppState.State = v1beta2.FailedSubmissionState
-	//			if err != nil {
-	//				// Propagate the error if the submission Job ended in failure after retries.
-	//				appToUpdate.Status.AppState.ErrorMessage = err.Error()
-	//			}
-	//			c.recordSparkApplicationEvent(appToUpdate)
-	//		}
-	//	} else if err != nil {
-	//		// Received an error trying to query the status of the Job.
-	//		return err
-	//	}
+	case v1beta2.PendingSubmissionState:
+		// Check the status of the submission Job and set the application status accordingly.
+		succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
+
+		if succeeded != nil {
+			// Submission Job terminated in either success or failure.
+			if *succeeded {
+				c.createSparkUIResources(appToUpdate)
+				appToUpdate.Status.AppState.State = v1beta2.SubmittedState
+				appToUpdate.Status.ExecutionAttempts++
+				if completionTime != nil {
+					appToUpdate.Status.SubmissionTime = *completionTime
+				}
+				c.recordSparkApplicationEvent(appToUpdate)
+			} else {
+				// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
+				// submission Job failed means all the submission attempts failed. So we set the application
+				// state to FailedSubmission, which is a terminal state.
+				appToUpdate.Status.AppState.State = v1beta2.FailedSubmissionState
+				if err != nil {
+					// Propagate the error if the submission Job ended in failure after retries.
+					appToUpdate.Status.AppState.ErrorMessage = err.Error()
+				}
+				c.recordSparkApplicationEvent(appToUpdate)
+			}
+		} else if err != nil {
+			// Received an error trying to query the status of the Job.
+			return err
+		}
 	case v1beta2.SucceedingState:
 		// The current run of the application has completed, check if it needs to be restarted.
 		if !shouldRetry(appToUpdate) {
-			glog.Info("in the should not retry section")
 			// Application is not subject to retry. Move to terminal CompletedState.
 			appToUpdate.Status.AppState.State = v1beta2.CompletedState
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else {
-			glog.Info("should retry")
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
 				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 					appToUpdate.Namespace, appToUpdate.Name, err)
@@ -631,7 +611,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appToUpdate.Namespace, appToUpdate.Name)
 			c.recordSparkApplicationEvent(appToUpdate)
 			c.clearStatus(&appToUpdate.Status)
-			glog.Info("Pending rerun state about to submit spark application again ")
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta2.SubmittedState, v1beta2.RunningState, v1beta2.UnknownState:
@@ -679,8 +658,6 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1beta2.SparkApplication {
-	glog.Info("in submitSparkApplication method")
-
 	// Apply default values before submitting the application to run.
 	v1beta2.SetSparkApplicationDefaults(app)
 
@@ -699,43 +676,57 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
-	//possibly add an if statement here to see if client or cluster mode -- not doing now becauase I get an error
-	// i dont understand and will debug later
-	//submissionID, driverPodName, err := c.subJobManager.createSubmissionJob(app)
-	submissionID, driverPodName, err := c.clientSubManager.createClientDriverPod(app)
+	var submissionID string
+	var driverPodName string
+	var err error
+
+	if app.Spec.Mode == v1beta2.ClientMode {
+		submissionID, driverPodName, err = c.clientSubManager.createClientDriverPod(app)
+	} else {
+		submissionID, driverPodName, err = c.subJobManager.createSubmissionJob(app)
+	}
 
 	//from google master repo but needed --
+	//IF FAILS HERE I ADDED BACK THE !ERRORS.ISALREADY EXISTS PART
 	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+		if !errors.IsAlreadyExists(err) || app.Spec.Mode == v1beta2.ClientMode {
+			app.Status = v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State:        v1beta2.FailedSubmissionState,
+					ErrorMessage: err.Error(),
+				},
+				SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+			}
 		}
+
 		c.recordSparkApplicationEvent(app)
-		glog.Errorf("failed to bring up driver pod for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		return app
 	}
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
+	var appState v1beta2.ApplicationStateType
+	if app.Spec.Mode == v1beta2.ClientMode {
+		appState = v1beta2.SubmittedState
+	} else {
+		appState = v1beta2.PendingSubmissionState
+	}
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID:       submissionID,
 		DriverInfo:         v1beta2.DriverInfo{PodName: driverPodName},
-		AppState:           v1beta2.ApplicationState{State: v1beta2.SubmittedState},
+		AppState:           v1beta2.ApplicationState{State: appState},
 		SubmissionAttempts: app.Status.SubmissionAttempts + 1,
 		ExecutionAttempts:  app.Status.ExecutionAttempts + 1,
 	}
 
 	c.recordSparkApplicationEvent(app)
-	c.createSparkUIResources(app)
+	if app.Spec.Mode == v1beta2.ClientMode {
+		c.createSparkUIResources(app)
+	}
 
 	return app
 }
 
 func (c *Controller) createSparkUIResources(app *v1beta2.SparkApplication) {
-	glog.Info("creating the spark ui")
-
 	service, err := createSparkUIService(app, c.kubeClient)
 	if err != nil {
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -958,13 +949,13 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			"SparkApplicationAdded",
 			"SparkApplication %s was added, enqueuing it for submission",
 			app.Name)
-	//case v1beta2.PendingSubmissionState:
-	//	c.recorder.Eventf(
-	//		app,
-	//		apiv1.EventTypeNormal,
-	//		"SubmissionJobCreated",
-	//		"Submission Job for SparkApplication %s was created",
-	//		app.Name)
+	case v1beta2.PendingSubmissionState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SubmissionJobCreated",
+			"Submission Job for SparkApplication %s was created",
+			app.Name)
 	case v1beta2.SubmittedState:
 		c.recorder.Eventf(
 			app,

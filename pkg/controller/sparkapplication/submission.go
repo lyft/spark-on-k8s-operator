@@ -24,8 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
@@ -40,7 +38,6 @@ const (
 )
 
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
-	glog.Info("building submission args")
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -107,7 +104,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		args = append(args, "--conf", conf)
 	}
 
-	glog.Info("adding the driver configurations")
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
@@ -127,7 +123,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 
 	if app.Spec.Volumes != nil {
-		glog.Info("volume is not empty")
 		options, err = addLocalDirConfOptions(app)
 		if err != nil {
 			return nil, err
@@ -191,7 +186,6 @@ func addDependenciesConfOptions(app *v1beta2.SparkApplication) []string {
 }
 
 func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([]string, error) {
-	glog.Info("in the add driver conf options method")
 	var driverConfOptions []string
 
 	driverConfOptions = append(driverConfOptions,
@@ -228,13 +222,9 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 	}
 
 	if app.Spec.Driver.ServiceAccount != nil {
-		glog.Info("the service account is not null")
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
 	} else if app.Spec.ServiceAccount != nil {
-		glog.Info("the service account is null")
-		glog.Infof("the spark.kubernetes.authenticate.driver.serviceAccountName is %s", *app.Spec.ServiceAccount)
-
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.ServiceAccount))
 	}
@@ -274,9 +264,6 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
-	//keep executor from deleting once terminating
-	executorConfOptions = append(executorConfOptions,
-			fmt.Sprintf("%s=false", config.SparkExecutorDeleteOnTermination))
 
 
 	if app.Spec.Executor.Instances != nil {
@@ -311,10 +298,10 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("spark.executor.memoryOverhead=%s", *app.Spec.Executor.MemoryOverhead))
 	}
 
-	//if app.Spec.Executor.DeleteOnTermination != nil {
-	//	executorConfOptions = append(executorConfOptions,
-	//		fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
-	//}
+	if app.Spec.Executor.DeleteOnTermination != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
+	}
 
 	for key, value := range app.Spec.Executor.Labels {
 		executorConfOptions = append(executorConfOptions,
