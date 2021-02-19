@@ -16,13 +16,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-)
-
-const (
-	driverPodMemoryRequest = "896Mi"
-	driverPodCpuRequest    = "100m"
-	driverPodMemoryLimit   = "900Mi"
-	driverPodCpuLimit      = "200m"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook/resourceusage"
 )
 
 type clientSubmissionPodManager interface {
@@ -69,6 +63,26 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 		imagePullPolicy = corev1.PullPolicy(*app.Spec.ImagePullPolicy)
 	}
 
+	var driverCpuQuantity string
+	if app.Spec.Driver.CoreRequest != nil {
+		driverCpuQuantity = fmt.Sprintf("%d", *app.Spec.Driver.CoreRequest)
+	} else {
+		driverCpuQuantity = fmt.Sprintf("%d", *app.Spec.Driver.Cores)
+	}
+
+	var driverCpuQuantityLimit string
+	if app.Spec.Driver.CoreLimit != nil {
+		driverCpuQuantityLimit = *app.Spec.Driver.CoreLimit
+	} else {
+		driverCpuQuantityLimit = "1"
+	}
+
+	driverOverheadMemory, err :=
+	 	resourceusage.MemoryRequiredForSparkPod(app.Spec.Driver.SparkPodSpec, app.Spec.MemoryOverheadFactor, app.Spec.Type, 1)
+	if err != nil {
+		return "", "", err
+	}
+
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            driverPodName,
@@ -97,12 +111,12 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 					},
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse(driverPodCpuRequest),
-							corev1.ResourceMemory: resource.MustParse(driverPodMemoryRequest),
+							corev1.ResourceCPU:    resource.MustParse(driverCpuQuantity),
+							corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%d", driverOverheadMemory)),
 						},
 						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse(driverPodCpuLimit),
-							corev1.ResourceMemory: resource.MustParse(driverPodMemoryLimit),
+							corev1.ResourceCPU:    resource.MustParse(driverCpuQuantityLimit),
+							corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%d", driverOverheadMemory)),
 						},
 					},
 				},
@@ -117,7 +131,6 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 		clientDriver.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
 	}
 
-	// Copy the labels on the SparkApplication to the driver pod.
 	for key, val := range app.Labels {
 		clientDriver.Labels[key] = val
 	}
