@@ -74,11 +74,11 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	if app.Spec.Driver.CoreLimit != nil {
 		driverCpuQuantityLimit = *app.Spec.Driver.CoreLimit
 	} else {
-		driverCpuQuantityLimit = "1"
+		driverCpuQuantityLimit = driverCpuQuantity
 	}
 
 	driverOverheadMemory, err :=
-	 	resourceusage.MemoryRequiredForSparkPod(app.Spec.Driver.SparkPodSpec, app.Spec.MemoryOverheadFactor, app.Spec.Type, 1)
+		resourceusage.MemoryRequiredForSparkPod(app.Spec.Driver.SparkPodSpec, app.Spec.MemoryOverheadFactor, app.Spec.Type, 1)
 	if err != nil {
 		return "", "", err
 	}
@@ -143,4 +143,3 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 
 	return submissionID, driverPodName, nil
 }
-
