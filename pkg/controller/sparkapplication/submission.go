@@ -265,7 +265,6 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
 
-
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)
 		executorConfOptions = append(executorConfOptions, conf)
