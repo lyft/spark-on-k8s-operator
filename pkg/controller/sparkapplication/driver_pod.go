@@ -65,7 +65,7 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 
 	var driverCpuQuantity string
 	if app.Spec.Driver.CoreRequest != nil {
-		driverCpuQuantity = fmt.Sprintf("%d", *app.Spec.Driver.CoreRequest)
+		driverCpuQuantity = *app.Spec.Driver.CoreRequest
 	} else {
 		driverCpuQuantity = fmt.Sprintf("%d", *app.Spec.Driver.Cores)
 	}
