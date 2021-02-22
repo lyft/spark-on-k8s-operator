@@ -693,8 +693,6 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		submissionID, driverPodName, err = c.subJobManager.createSubmissionJob(app)
 	}
 
-	//from google master repo but needed --
-	//IF FAILS HERE I ADDED BACK THE !ERRORS.ISALREADY EXISTS PART
 	if err != nil {
 		if !errors.IsAlreadyExists(err) || app.Spec.Mode == v1beta2.ClientMode {
 			app.Status = v1beta2.SparkApplicationStatus{
