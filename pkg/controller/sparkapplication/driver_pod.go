@@ -21,6 +21,7 @@ import (
 
 type clientSubmissionPodManager interface {
 	createClientDriverPod(app *v1beta2.SparkApplication) (string, string, error)
+	getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error)
 }
 
 type realClientSubmissionPodManager struct {
@@ -65,7 +66,7 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 
 	var driverCpuQuantity string
 	if app.Spec.Driver.CoreRequest != nil {
-		driverCpuQuantity = fmt.Sprintf("%d", *app.Spec.Driver.CoreRequest)
+		driverCpuQuantity = *app.Spec.Driver.CoreRequest
 	} else {
 		driverCpuQuantity = fmt.Sprintf("%d", *app.Spec.Driver.Cores)
 	}
@@ -74,11 +75,11 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	if app.Spec.Driver.CoreLimit != nil {
 		driverCpuQuantityLimit = *app.Spec.Driver.CoreLimit
 	} else {
-		driverCpuQuantityLimit = "1"
+		driverCpuQuantityLimit = driverCpuQuantity
 	}
 
 	driverOverheadMemory, err :=
-	 	resourceusage.MemoryRequiredForSparkPod(app.Spec.Driver.SparkPodSpec, app.Spec.MemoryOverheadFactor, app.Spec.Type, 1)
+		resourceusage.MemoryRequiredForSparkPod(app.Spec.Driver.SparkPodSpec, app.Spec.MemoryOverheadFactor, app.Spec.Type, 1)
 	if err != nil {
 		return "", "", err
 	}
@@ -144,3 +145,6 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	return submissionID, driverPodName, nil
 }
 
+func (spm *realClientSubmissionPodManager) getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error) {
+	return spm.podLister.Pods(app.Namespace).Get(getDriverPodName(app))
+}
