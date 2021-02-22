@@ -2,7 +2,6 @@ package sparkapplication
 
 import (
 	"fmt"
-	batchv1 "k8s.io/api/batch/v1"
 	"strings"
 
 	"github.com/golang/glog"
