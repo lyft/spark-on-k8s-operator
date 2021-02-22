@@ -2,6 +2,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
 	"strings"
 
 	"github.com/golang/glog"
@@ -21,6 +22,7 @@ import (
 
 type clientSubmissionPodManager interface {
 	createClientDriverPod(app *v1beta2.SparkApplication) (string, string, error)
+	getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error)
 }
 
 type realClientSubmissionPodManager struct {
@@ -142,4 +144,8 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	}
 
 	return submissionID, driverPodName, nil
+}
+
+func (spm *realClientSubmissionPodManager) getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error) {
+	return spm.podLister.Pods(app.Namespace).Get(getDriverPodName(app))
 }
