@@ -7,6 +7,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
@@ -33,8 +34,7 @@ func newFakePodManager(pods ...*corev1.Pod) clientSubmissionPodManager {
 }
 
 func TestCreateDriverPod(t *testing.T) {
-	var oneCore int32 = 1
-	coreLimit := "1"
+	core := "1"
 	memory := "512m"
 
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
@@ -61,12 +61,25 @@ func TestCreateDriverPod(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
+			Image: stringptr("spark-base-image"),
 			Driver: v1beta2.DriverSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
-					Cores:          &oneCore,
-					CoreLimit:      &coreLimit,
-					Memory:         &memory,
-					MemoryOverhead: &memory,
+					InitContainers: []corev1.Container{
+						{
+							Name:  "spark-kubernetes-driver",
+							Image: "spark-driver:latest",
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(core),
+									corev1.ResourceMemory: resource.MustParse(memory),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(core),
+									corev1.ResourceMemory: resource.MustParse(memory),
+								},
+							},
+						},
+					},
 				},
 			},
 		},
