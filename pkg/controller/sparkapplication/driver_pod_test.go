@@ -48,7 +48,7 @@ func TestCreateDriverPod(t *testing.T) {
 	assert.Empty(t, submissionID)
 	assert.Empty(t, driverPodName)
 
-	// Case 2:  Driver Pod creation successful.
+	// Case 2:  Driver Pod created successfully.
 	app = &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -76,14 +76,14 @@ func TestGetCreateDriverPod(t *testing.T) {
 		Status: v1beta2.SparkApplicationStatus{},
 	}
 
-	// Case 1: Job doesn't exist.
+	// Case 1: driver pod does not exist
 	podManager := newFakePodManager(nil)
 	podResult, err := podManager.getClientDriverPod(app)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 	assert.Nil(t, podResult)
 
-	// Case 2: Job exists.
+	// Case 2: driver pod created
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-driver",
