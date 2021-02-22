@@ -79,23 +79,6 @@ func TestCreateDriverPod(t *testing.T) {
 
 }
 
-Spec: v1beta2.SparkApplicationSpec{
-Driver: v1beta2.DriverSpec{
-SparkPodSpec: v1beta2.SparkPodSpec{
-Tolerations: []corev1.Toleration{
-{
-Key:      "Key1",
-Operator: "Equal",
-Value:    "Value1",
-Effect:   "NoEffect",
-},
-{
-Key:      "Key2",
-Operator: "Equal",
-Value:    "Value2",
-Effect:   "NoEffect",
-},
-
 func TestGetDriverPod(t *testing.T) {
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
