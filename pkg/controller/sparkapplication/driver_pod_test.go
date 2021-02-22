@@ -47,21 +47,21 @@ func TestCreateDriverPod(t *testing.T) {
 	assert.Empty(t, submissionID)
 	assert.Empty(t, driverPodName)
 
-	// Case 2:  Driver Pod creation successful.
-	app = &v1beta2.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-		Spec: v1beta2.SparkApplicationSpec{
-			Image: stringptr("spark-base-image"),
-		},
-		Status: v1beta2.SparkApplicationStatus{},
-	}
-	podManager = newFakePodManager(nil)
-	submissionID, driverPodName, err = podManager.createClientDriverPod(app)
-	assert.Nil(t, err)
-	assert.NotNil(t, submissionID)
-	assert.NotNil(t, driverPodName)
+	//// Case 2:  Driver Pod creation successful.
+	//app = &v1beta2.SparkApplication{
+	//	ObjectMeta: metav1.ObjectMeta{
+	//		Name:      "foo",
+	//		Namespace: "default",
+	//	},
+	//	Spec: v1beta2.SparkApplicationSpec{
+	//		Image: stringptr("spark-base-image"),
+	//	},
+	//	Status: v1beta2.SparkApplicationStatus{},
+	//}
+	//podManager = newFakePodManager(nil)
+	//submissionID, driverPodName, err = podManager.createClientDriverPod(app)
+	//assert.Nil(t, err)
+	//assert.NotNil(t, submissionID)
+	//assert.NotNil(t, driverPodName)
 
 }
