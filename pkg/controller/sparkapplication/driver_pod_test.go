@@ -1,6 +1,7 @@
 package sparkapplication
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -32,6 +33,8 @@ func newFakePodManager(pods ...*corev1.Pod) clientSubmissionPodManager {
 }
 
 func TestCreateDriverPod(t *testing.T) {
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
 	// Case 1: Image doesn't exist.
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -66,7 +69,7 @@ func TestCreateDriverPod(t *testing.T) {
 
 }
 
-func TestGetCreateDriverPod(t *testing.T) {
+func TestGetDriverPod(t *testing.T) {
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
