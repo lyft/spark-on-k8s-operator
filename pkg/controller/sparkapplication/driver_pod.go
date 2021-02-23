@@ -19,17 +19,17 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook/resourceusage"
 )
 
-type clientSubmissionPodManager interface {
+type clientModeSubmissionPodManager interface {
 	createClientDriverPod(app *v1beta2.SparkApplication) (string, string, error)
 	getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error)
 }
 
-type realClientSubmissionPodManager struct {
+type realClientModeSubmissionPodManager struct {
 	kubeClient kubernetes.Interface
 	podLister  v1.PodLister
 }
 
-func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.SparkApplication) (string, string, error) {
+func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta2.SparkApplication) (string, string, error) {
 	var image string
 	if app.Spec.Image != nil {
 		image = *app.Spec.Image
@@ -145,6 +145,6 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	return submissionID, driverPodName, nil
 }
 
-func (spm *realClientSubmissionPodManager) getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error) {
+func (spm *realClientModeSubmissionPodManager) getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	return spm.podLister.Pods(app.Namespace).Get(getDriverPodName(app))
 }

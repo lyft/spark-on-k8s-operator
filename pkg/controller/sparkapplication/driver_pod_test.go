@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newFakePodManager(pods ...*corev1.Pod) clientSubmissionPodManager {
+func newFakePodManager(pods ...*corev1.Pod) clientModeSubmissionPodManager {
 	kubeClient := kubeclientfake.NewSimpleClientset()
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
 	podInformer := informerFactory.Core().V1().Pods()
@@ -26,7 +26,7 @@ func newFakePodManager(pods ...*corev1.Pod) clientSubmissionPodManager {
 			kubeClient.CoreV1().Pods(pod.GetNamespace()).Create(pod)
 		}
 	}
-	return &realClientSubmissionPodManager{
+	return &realClientModeSubmissionPodManager{
 		podLister:  lister,
 		kubeClient: kubeClient,
 	}

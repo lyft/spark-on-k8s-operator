@@ -64,18 +64,18 @@ var (
 
 // Controller manages instances of SparkApplication.
 type Controller struct {
-	crdClient         crdclientset.Interface
-	kubeClient        clientset.Interface
-	queue             workqueue.RateLimitingInterface
-	cacheSynced       cache.InformerSynced
-	recorder          record.EventRecorder
-	metrics           *sparkAppMetrics
-	applicationLister crdlisters.SparkApplicationLister
-	podLister         v1.PodLister
-	ingressURLFormat  string
-	batchSchedulerMgr *batchscheduler.SchedulerManager
-	subJobManager     submissionJobManager
-	clientSubManager  clientSubmissionPodManager
+	crdClient               crdclientset.Interface
+	kubeClient              clientset.Interface
+	queue                   workqueue.RateLimitingInterface
+	cacheSynced             cache.InformerSynced
+	recorder                record.EventRecorder
+	metrics                 *sparkAppMetrics
+	applicationLister       crdlisters.SparkApplicationLister
+	podLister               v1.PodLister
+	ingressURLFormat        string
+	batchSchedulerMgr       *batchscheduler.SchedulerManager
+	subJobManager           submissionJobManager
+	clientModeSubPodManager clientModeSubmissionPodManager
 }
 
 // NewController creates a new Controller.
@@ -113,14 +113,14 @@ func newSparkApplicationController(
 		"spark-application-controller")
 
 	controller := &Controller{
-		crdClient:         crdClient,
-		kubeClient:        kubeClient,
-		recorder:          eventRecorder,
-		queue:             queue,
-		ingressURLFormat:  ingressURLFormat,
-		batchSchedulerMgr: batchSchedulerMgr,
-		subJobManager:     &realSubmissionJobManager{kubeClient: kubeClient},
-		clientSubManager:  &realClientSubmissionPodManager{kubeClient: kubeClient},
+		crdClient:               crdClient,
+		kubeClient:              kubeClient,
+		recorder:                eventRecorder,
+		queue:                   queue,
+		ingressURLFormat:        ingressURLFormat,
+		batchSchedulerMgr:       batchSchedulerMgr,
+		subJobManager:           &realSubmissionJobManager{kubeClient: kubeClient},
+		clientModeSubPodManager: &realClientModeSubmissionPodManager{kubeClient: kubeClient},
 	}
 
 	if metricsConfig != nil {
@@ -152,7 +152,7 @@ func newSparkApplicationController(
 		DeleteFunc: sparkObjectEventHandler.onObjectDeleted,
 	})
 	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobInformer.Lister()}
-	controller.clientSubManager = &realClientSubmissionPodManager{kubeClient: kubeClient, podLister: podsInformer.Lister()}
+	controller.clientModeSubPodManager = &realClientModeSubmissionPodManager{kubeClient: kubeClient, podLister: podsInformer.Lister()}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -680,7 +680,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	var err error
 
 	if app.Spec.Mode == v1beta2.ClientMode {
-		submissionID, driverPodName, err = c.clientSubManager.createClientDriverPod(app)
+		submissionID, driverPodName, err = c.clientModeSubPodManager.createClientDriverPod(app)
 	} else {
 		submissionID, driverPodName, err = c.subJobManager.createSubmissionJob(app)
 	}
