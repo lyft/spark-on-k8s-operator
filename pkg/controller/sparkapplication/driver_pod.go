@@ -84,6 +84,11 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		return "", "", err
 	}
 
+	var args []string
+	for _, argument := range app.Spec.Arguments {
+		args = append(args, argument)
+	}
+
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            driverPodName,
@@ -99,6 +104,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 					Name:            "spark-kubernetes-driver",
 					Image:           image,
 					Command:         command,
+					Args:            args,
 					ImagePullPolicy: imagePullPolicy,
 					Env: []corev1.EnvVar{
 						{
@@ -126,6 +132,11 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		},
 	}
 
+	for key, value := range app.Spec.Driver.EnvVars {
+		clientDriver.Spec.Containers[0].Env =
+			append(clientDriver.Spec.Containers[0].Env, corev1.EnvVar{Name: key, Value: value})
+	}
+
 	if app.Spec.ServiceAccount != nil {
 		clientDriver.Spec.ServiceAccountName = *app.Spec.ServiceAccount
 	} else if app.Spec.Driver.ServiceAccount != nil {
@@ -133,6 +144,9 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	}
 
 	for key, val := range app.Labels {
+		clientDriver.Labels[key] = val
+	}
+	for key, val := range app.Spec.Driver.Labels {
 		clientDriver.Labels[key] = val
 	}
 
