@@ -90,6 +90,24 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		args = append(args, argument)
 	}
 
+	var envVars []corev1.EnvVar
+	for key, value := range app.Spec.Driver.EnvVars {
+		envVars = append(envVars, corev1.EnvVar{Name: key, Value: value})
+	}
+
+	driverVars := app.Spec.Driver.Env
+	for key, value := range driverVars {
+		envVars = append(envVars, corev1.EnvVar{Name: driverVars[key].String(), Value: value.String()})
+	}
+
+	envVars = append(envVars,
+		corev1.EnvVar{Name: "SPARK_K8S_DRIVER_POD_IP",
+			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"}}})
+
+	envVars = append(envVars,
+		corev1.EnvVar{Name: "SPARK_DRIVER_BIND_ADDRESS",
+			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"}}})
+
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            driverPodName,
@@ -107,24 +125,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 					Command:         command,
 					Args:            args,
 					ImagePullPolicy: imagePullPolicy,
-					Env: []corev1.EnvVar{
-						{
-							Name: "SPARK_K8S_DRIVER_POD_IP",
-							ValueFrom: &corev1.EnvVarSource{
-								FieldRef: &corev1.ObjectFieldSelector{
-									FieldPath: "status.podIP",
-								},
-							},
-						},
-						{
-							Name: "SPARK_DRIVER_BIND_ADDRESS",
-							ValueFrom: &corev1.EnvVarSource{
-								FieldRef: &corev1.ObjectFieldSelector{
-									FieldPath: "status.podIP",
-								},
-							},
-						},
-					},
+					Env:             envVars,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse(driverCpuQuantity),
@@ -139,18 +140,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
 		},
-	}
-
-	for key, value := range app.Spec.Driver.EnvVars {
-		clientDriver.Spec.Containers[0].Env =
-			append(clientDriver.Spec.Containers[0].Env, corev1.EnvVar{Name: key, Value: value})
-	}
-
-	var envVars []corev1.EnvVar
-	envVars = app.Spec.Driver.Env
-	for key, value := range envVars {
-		clientDriver.Spec.Containers[0].Env =
-			append(clientDriver.Spec.Containers[0].Env, corev1.EnvVar{Name: envVars[key].String(), Value: value.String()})
 	}
 
 	if app.Spec.ServiceAccount != nil {
