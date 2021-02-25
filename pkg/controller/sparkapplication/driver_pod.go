@@ -53,6 +53,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	labels := map[string]string{
 		config.SparkAppNameLabel:            app.Name,
 		config.LaunchedBySparkOperatorLabel: "true",
+		config.SubmissionIDLabel:            submissionID,
 	}
 
 	imagePullSecrets := make([]corev1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
@@ -115,6 +116,14 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 								},
 							},
 						},
+						{
+							Name: "SPARK_DRIVER_BIND_ADDRESS",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "status.podIP",
+								},
+							},
+						},
 					},
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -135,6 +144,13 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	for key, value := range app.Spec.Driver.EnvVars {
 		clientDriver.Spec.Containers[0].Env =
 			append(clientDriver.Spec.Containers[0].Env, corev1.EnvVar{Name: key, Value: value})
+	}
+
+	var envVars []corev1.EnvVar
+	envVars = app.Spec.Driver.Env
+	for key, value := range envVars {
+		clientDriver.Spec.Containers[0].Env =
+			append(clientDriver.Spec.Containers[0].Env, corev1.EnvVar{Name: envVars[key].String(), Value: value.String()})
 	}
 
 	if app.Spec.ServiceAccount != nil {
