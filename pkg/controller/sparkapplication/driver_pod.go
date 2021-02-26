@@ -2,6 +2,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/golang/glog"
@@ -113,7 +114,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "SPARK_ENVIRONMENT",
-			Value: "$SPARK_ENVIRONMENT"})
+			Value: os.Getenv("SPARK_ENVIRONMENT")})
 
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
