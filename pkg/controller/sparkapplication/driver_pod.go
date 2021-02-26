@@ -107,6 +107,13 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "SPARK_DRIVER_BIND_ADDRESS",
 			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"}}})
+	envVars = append(envVars,
+		corev1.EnvVar{Name: "SPARK_DEBUG",
+			Value: "1"})
+
+	envVars = append(envVars,
+		corev1.EnvVar{Name: "SPARK_ENVIRONMENT",
+			Value: "$SPARK_ENVIRONMENT"})
 
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
