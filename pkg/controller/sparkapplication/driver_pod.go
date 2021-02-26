@@ -96,9 +96,11 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		envVars = append(envVars, corev1.EnvVar{Name: key, Value: value})
 	}
 
-	driverVars := app.Spec.Driver.Env
-	for key, value := range driverVars {
-		envVars = append(envVars, corev1.EnvVar{Name: driverVars[key].String(), Value: value.String()})
+	for key, value := range app.Spec.SparkConf {
+		if strings.HasPrefix(key, "spark.kubernetes.driverEnv.") {
+			env := strings.ReplaceAll(key, "spark.kubernetes.driverEnv.", "")
+			envVars = append(envVars, corev1.EnvVar{Name: env, Value: value})
+		}
 	}
 
 	envVars = append(envVars,
