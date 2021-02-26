@@ -3,7 +3,9 @@ package sparkapplication
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/uuid"
@@ -113,6 +115,8 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "SPARK_DEBUG",
 			Value: "1"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OPERATOR_START_TIME",
+		Value: strconv.FormatInt(time.Now().UnixNano()/1000000, 10)})
 
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "SPARK_ENVIRONMENT",
