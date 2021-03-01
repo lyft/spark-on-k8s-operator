@@ -124,7 +124,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "SPARK_HOME",
-			Value: os.Getenv("/opt/spark")})
+			Value: "/opt/spark"})
 
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
