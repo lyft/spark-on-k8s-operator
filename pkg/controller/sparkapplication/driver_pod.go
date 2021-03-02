@@ -2,7 +2,6 @@ package sparkapplication
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -117,14 +116,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 			Value: "1"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OPERATOR_START_TIME",
 		Value: strconv.FormatInt(time.Now().UnixNano()/1000000, 10)})
-
-	envVars = append(envVars,
-		corev1.EnvVar{Name: "SPARK_ENVIRONMENT",
-			Value: os.Getenv("SPARK_ENVIRONMENT")})
-
-	envVars = append(envVars,
-		corev1.EnvVar{Name: "SPARK_HOME",
-			Value: "/opt/spark"})
 
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
