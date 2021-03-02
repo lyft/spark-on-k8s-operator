@@ -111,9 +111,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "SPARK_DRIVER_BIND_ADDRESS",
 			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"}}})
-	envVars = append(envVars,
-		corev1.EnvVar{Name: "SPARK_DEBUG",
-			Value: "1"})
+
 	envVars = append(envVars, corev1.EnvVar{Name: "OPERATOR_START_TIME",
 		Value: strconv.FormatInt(time.Now().UnixNano()/1000000, 10)})
 
