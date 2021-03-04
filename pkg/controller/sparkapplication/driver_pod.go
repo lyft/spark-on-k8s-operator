@@ -91,7 +91,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	for _, argument := range app.Spec.Arguments {
 		args = append(args, argument)
 	}
-
+	//append all env variables
 	var envVars []corev1.EnvVar
 	for key, value := range app.Spec.Driver.EnvVars {
 		envVars = append(envVars, corev1.EnvVar{Name: key, Value: value})
@@ -115,16 +115,62 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	envVars = append(envVars, corev1.EnvVar{Name: "OPERATOR_START_TIME",
 		Value: strconv.FormatInt(time.Now().UnixNano()/1000000, 10)})
 
+	//append all annotations
+	annotations := make(map[string]string)
+	for key, value := range app.Spec.Driver.Annotations {
+		annotations[key] = value
+	}
+	for key, value := range app.Annotations {
+		annotations[key] = value
+	}
+
+	for key, value := range app.Spec.SparkConf {
+		if strings.HasPrefix(key, "spark.kubernetes.driver.") {
+			annotation := strings.ReplaceAll(key, "spark.kubernetes.driver.service.annotation.", "")
+			annotations[annotation] = value
+		}
+	}
+	//append all secrets
+
+	//append all volumes
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
+
+	for _, value := range app.Spec.Volumes {
+		volumes = append(volumes, corev1.Volume{Name: value.Name,
+			VolumeSource: value.VolumeSource})
+	}
+	volumes = append(volumes, corev1.Volume{Name: "spark-local-dir-1",
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{Medium: "Memory"}}})
+	volumes = append(volumes, corev1.Volume{Name: "hadoop-properties",
+		VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: fmt.Sprintf("%s-%s-hadoop-config", app.Name, uuid.New().String())},
+		}}})
+	volumes = append(volumes, corev1.Volume{Name: "spark-conf-volume",
+		VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: fmt.Sprintf("%s-%s-driver-conf-map", app.Name, uuid.New().String())},
+		}}})
+
+	for _, value := range app.Spec.Driver.VolumeMounts {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: value.Name,
+			MountPath: value.MountPath})
+	}
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "spark-local-dir-1",
+		MountPath: fmt.Sprintf("/var/data/spark-%s", uuid.New().String())})
+
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            driverPodName,
 			Namespace:       app.Namespace,
 			Labels:          labels,
-			Annotations:     app.Annotations,
+			Annotations:     annotations,
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: corev1.PodSpec{
 			ImagePullSecrets: imagePullSecrets,
+			Volumes:          volumes,
 			Containers: []corev1.Container{
 				{
 					Name:            "spark-kubernetes-driver",
@@ -133,6 +179,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 					Args:            args,
 					ImagePullPolicy: imagePullPolicy,
 					Env:             envVars,
+					VolumeMounts:    volumeMounts,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse(driverCpuQuantity),
