@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -454,7 +455,11 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		}
 	case v1beta2.FailedSubmissionState:
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
-		if app.Spec.RestartPolicy.Type == v1beta2.Always {
+		//if app.Spec.RestartPolicy.Type == v1beta2.Always {
+		//	return true
+		//}
+		if app.Spec.RestartPolicy.Type == v1beta2.Always ||
+			strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") {
 			return true
 		}
 	}

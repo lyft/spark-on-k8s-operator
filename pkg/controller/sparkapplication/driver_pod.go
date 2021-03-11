@@ -2,14 +2,12 @@ package sparkapplication
 
 import (
 	"fmt"
+	"github.com/golang/glog"
+	"github.com/google/uuid"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/golang/glog"
-	"github.com/google/uuid"
-
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,6 +65,11 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		imagePullPolicy = corev1.PullPolicy(*app.Spec.ImagePullPolicy)
 	}
 
+	//add restart policy to app.spec in case of retries due to resource quota
+	retryInterval := int64(14)
+	app.Spec.RestartPolicy.Type = v1beta2.OnFailure
+	app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = &retryInterval
+
 	var driverCpuQuantity string
 	if app.Spec.Driver.CoreRequest != nil {
 		driverCpuQuantity = *app.Spec.Driver.CoreRequest
@@ -80,6 +83,11 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	} else {
 		driverCpuQuantityLimit = driverCpuQuantity
 	}
+
+	//localtesting
+	//if *app.Spec.Driver.Memory > "500" {
+	//	return "", "", errors.New("exceeded quota")
+	//}
 
 	driverOverheadMemory, err :=
 		resourceusage.MemoryRequiredForSparkPod(app.Spec.Driver.SparkPodSpec, app.Spec.MemoryOverheadFactor, app.Spec.Type, 1)
