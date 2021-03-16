@@ -459,7 +459,7 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		//	return true
 		//}
 		if app.Spec.RestartPolicy.Type == v1beta2.Always ||
-			strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") {
+			(strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= 14) {
 			return true
 		}
 	}
@@ -1034,7 +1034,6 @@ func (c *Controller) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 	if status.AppState.State == v1beta2.InvalidatingState {
 		status.SparkApplicationID = ""
-		status.SubmissionAttempts = status.SubmissionAttempts + 1
 		status.ExecutionAttempts = 0
 		status.SubmissionTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
@@ -1042,7 +1041,6 @@ func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 		status.ExecutorState = nil
 	} else if status.AppState.State == v1beta2.PendingRerunState {
 		status.SparkApplicationID = ""
-		status.SubmissionAttempts = status.SubmissionAttempts + 1
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
