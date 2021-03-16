@@ -685,7 +685,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	var err error
 
 	//for testing on flyte
-	app.Spec.Mode = v1beta2.ClientMode
+	//app.Spec.Mode = v1beta2.ClientMode
 
 	if app.Spec.Mode == v1beta2.ClientMode {
 		submissionID, driverPodName, err = c.clientModeSubPodManager.createClientDriverPod(app)
