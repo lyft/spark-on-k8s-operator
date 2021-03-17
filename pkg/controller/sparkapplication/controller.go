@@ -458,7 +458,7 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
 		}
-		if strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= 14 {
+		if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= 14 {
 			return true
 		}
 	}
