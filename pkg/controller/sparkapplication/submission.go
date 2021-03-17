@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -81,6 +82,12 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	if app.Spec.Mode == v1beta2.ClientMode {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkDriverHost, "$SPARK_K8S_DRIVER_POD_IP"))
+
+		retries := int32(14)
+		app.Spec.RestartPolicy.OnSubmissionFailureRetries = &retries
+		failureRetries := app.Status.SubmissionAttempts - 1
+		exponentialBackoff := int64(math.Exp2(float64(failureRetries)))
+		app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = &exponentialBackoff
 	}
 
 	// Operator triggered spark-submit should never wait for App completion
