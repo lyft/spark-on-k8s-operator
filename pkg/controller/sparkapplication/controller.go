@@ -457,9 +457,10 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
-		}
-		if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= 14 {
-			return true
+		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
+			if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+				return true
+			}
 		}
 	}
 	return false
@@ -535,15 +536,10 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta2.PendingSubmissionState:
 		//Resubmission is based on resource quota. We wait and then see if the interval passed to rerun
 		if app.Spec.Mode == v1beta2.ClientMode {
-			glog.Info("in pending submission")
 			var interval int64 = 257
-			time.Sleep(time.Duration(interval) * time.Second)
 			if hasRetryIntervalPassed(&interval, appToUpdate.Status.SubmissionAttempts, appToUpdate.CreationTimestamp) {
 				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
-			} else {
-				appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
 			}
-
 		} else {
 			// Check the status of the submission Job and set the application status accordingly.
 			succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
