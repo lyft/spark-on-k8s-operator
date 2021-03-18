@@ -533,33 +533,47 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta2.PendingSubmissionState:
-		// Check the status of the submission Job and set the application status accordingly.
-		succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
-
-		if succeeded != nil {
-			// Submission Job terminated in either success or failure.
-			if *succeeded {
-				c.createSparkUIResources(appToUpdate)
-				appToUpdate.Status.AppState.State = v1beta2.SubmittedState
-				appToUpdate.Status.ExecutionAttempts++
-				if completionTime != nil {
-					appToUpdate.Status.SubmissionTime = *completionTime
-				}
-				c.recordSparkApplicationEvent(appToUpdate)
+		//Resubmission is based on resource quota. We wait and then see if the interval passed to rerun
+		if app.Spec.Mode == v1beta2.ClientMode {
+			glog.Info("in pending submission")
+			var interval int64 = 257
+			time.Sleep(time.Duration(interval) * time.Second)
+			if hasRetryIntervalPassed(&interval, appToUpdate.Status.SubmissionAttempts, appToUpdate.CreationTimestamp) {
+				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 			} else {
-				// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
-				// submission Job failed means all the submission attempts failed. So we set the application
-				// state to FailedSubmission, which is a terminal state.
-				appToUpdate.Status.AppState.State = v1beta2.FailedSubmissionState
-				if err != nil {
-					// Propagate the error if the submission Job ended in failure after retries.
-					appToUpdate.Status.AppState.ErrorMessage = err.Error()
-				}
-				c.recordSparkApplicationEvent(appToUpdate)
+				appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
 			}
-		} else if err != nil {
-			// Received an error trying to query the status of the Job.
-			return err
+
+		} else {
+			// Check the status of the submission Job and set the application status accordingly.
+			succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
+
+			if succeeded != nil {
+				// Submission Job terminated in either success or failure.
+				if *succeeded {
+					c.createSparkUIResources(appToUpdate)
+					appToUpdate.Status.AppState.State = v1beta2.SubmittedState
+					appToUpdate.Status.ExecutionAttempts++
+					if completionTime != nil {
+						appToUpdate.Status.SubmissionTime = *completionTime
+					}
+					c.recordSparkApplicationEvent(appToUpdate)
+				} else {
+					// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
+					// submission Job failed means all the submission attempts failed. So we set the application
+					// state to FailedSubmission, which is a terminal state.
+					appToUpdate.Status.AppState.State = v1beta2.FailedSubmissionState
+					if err != nil {
+						// Propagate the error if the submission Job ended in failure after retries.
+						appToUpdate.Status.AppState.ErrorMessage = err.Error()
+					}
+					c.recordSparkApplicationEvent(appToUpdate)
+				}
+			} else if err != nil {
+				// Received an error trying to query the status of the Job.
+				return err
+			}
+
 		}
 	case v1beta2.SucceedingState:
 		// The current run of the application has completed, check if it needs to be restarted.
@@ -595,9 +609,14 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else {
-			// Application is subject to retry. Move to PendingRerunState.
-			appToUpdate.Status.AppState.ErrorMessage = ""
-			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			if appToUpdate.Spec.Mode == v1beta2.ClusterMode {
+				// Application is subject to retry. Move to PendingRerunState.
+				appToUpdate.Status.AppState.ErrorMessage = ""
+				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			} else {
+				//need to wait before resubmitting if client failure due to resource quota
+				appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
+			}
 		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-submission.
