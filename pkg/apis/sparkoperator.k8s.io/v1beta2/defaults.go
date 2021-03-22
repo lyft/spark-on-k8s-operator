@@ -23,7 +23,7 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 	}
 
 	if app.Spec.Mode == "" {
-		app.Spec.Mode = ClusterMode
+		app.Spec.Mode = ClientMode
 	}
 
 	if app.Spec.RestartPolicy.Type == "" {
