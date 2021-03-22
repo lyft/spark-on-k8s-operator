@@ -458,7 +458,12 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
 		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
-			if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+			retries := app.Spec.RestartPolicy.OnSubmissionFailureRetries
+			if retries == nil {
+				retries = new(int32)
+				*retries = 14
+			}
+			if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts <= *retries {
 				return true
 			}
 		}
