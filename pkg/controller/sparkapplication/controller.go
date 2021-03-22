@@ -539,6 +539,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 			var interval int64 = 257
 			if hasRetryIntervalPassed(&interval, appToUpdate.Status.SubmissionAttempts, appToUpdate.CreationTimestamp) {
 				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			} else {
+				appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
+
 			}
 		} else {
 			// Check the status of the submission Job and set the application status accordingly.
