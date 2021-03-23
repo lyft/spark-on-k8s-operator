@@ -455,7 +455,8 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		}
 	case v1beta2.PendingSubmissionState:
 		var interval int64 = 257
-		if app.Spec.Mode == v1beta2.ClientMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts < *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+		if app.Spec.Mode == v1beta2.ClientMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts < 14 {
+			//if app.Spec.Mode == v1beta2.ClientMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts < *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
 			return true
 		}
 	case v1beta2.FailedSubmissionState:
@@ -463,7 +464,9 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
 		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
-			if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts < *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+			//if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts < *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+			if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts < 14 {
+
 				return true
 			}
 		}
