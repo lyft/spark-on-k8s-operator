@@ -138,7 +138,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	for key, value := range app.Spec.SparkConf {
 		if strings.HasPrefix(key, "spark.kubernetes.driver.annotation.") {
-			annotation := strings.ReplaceAll(key, "spark.kubernetes.driver.service.annotation.", "")
+			annotation := strings.ReplaceAll(key, "spark.kubernetes.driver.annotation.", "")
 			annotations[annotation] = value
 		}
 	}
