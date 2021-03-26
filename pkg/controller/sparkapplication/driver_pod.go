@@ -50,10 +50,24 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
-	labels := map[string]string{
-		config.SparkAppNameLabel:            app.Name,
-		config.LaunchedBySparkOperatorLabel: "true",
-		config.SubmissionIDLabel:            submissionID,
+	labels := make(map[string]string)
+	labels[config.SparkAppNameLabel] = app.Name
+	labels[config.LaunchedBySparkOperatorLabel] = "true"
+	labels[config.SubmissionIDLabel] = submissionID
+	labels[config.SparkRoleLabel] = "driver"
+
+	for key, val := range app.Labels {
+		labels[key] = val
+	}
+	for key, val := range app.Spec.Driver.Labels {
+		labels[key] = val
+	}
+
+	for key, value := range app.Spec.SparkConf {
+		if strings.HasPrefix(key, "spark.kubernetes.driver.") {
+			label := strings.ReplaceAll(key, "spark.kubernetes.driver.service.label.", "")
+			labels[label] = value
+		}
 	}
 
 	imagePullSecrets := make([]corev1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
@@ -198,13 +212,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		clientDriver.Spec.ServiceAccountName = *app.Spec.ServiceAccount
 	} else if app.Spec.Driver.ServiceAccount != nil {
 		clientDriver.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
-	}
-
-	for key, val := range app.Labels {
-		clientDriver.Labels[key] = val
-	}
-	for key, val := range app.Spec.Driver.Labels {
-		clientDriver.Labels[key] = val
 	}
 
 	glog.Infof("Creating the %s for running spark in client mode", clientDriver.Name)
