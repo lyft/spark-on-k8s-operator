@@ -57,9 +57,11 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	labels[config.SparkRoleLabel] = "driver"
 
 	for key, val := range app.Labels {
+		//glog.Info("printing the labels %s = %s", key, val)
 		labels[key] = val
 	}
 	for key, val := range app.Spec.Driver.Labels {
+		//glog.Info("printing the labels here too: %s = %s", key, val)
 		labels[key] = val
 	}
 
@@ -67,6 +69,9 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		if strings.HasPrefix(key, "spark.kubernetes.driver.label.") {
 			label := strings.ReplaceAll(key, "spark.kubernetes.driver.label.", "")
 			labels[label] = value
+
+			//glog.Info("printing the labels here threee :  %s = %s", label, value)
+
 		}
 	}
 
