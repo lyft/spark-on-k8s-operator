@@ -15,7 +15,6 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook/resourceusage"
 )
 
@@ -51,10 +50,10 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	labels := make(map[string]string)
-	labels[config.SparkAppNameLabel] = app.Name
-	labels[config.LaunchedBySparkOperatorLabel] = "true"
-	labels[config.SubmissionIDLabel] = submissionID
-	labels[config.SparkRoleLabel] = "driver"
+	//labels[config.SparkAppNameLabel] = app.Name
+	//labels[config.LaunchedBySparkOperatorLabel] = "true"
+	//labels[config.SubmissionIDLabel] = submissionID
+	//labels[config.SparkRoleLabel] = "driver"
 
 	for key, val := range app.Labels {
 		//glog.Info("printing the labels %s = %s", key, val)
