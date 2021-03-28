@@ -54,7 +54,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	labels[config.SparkAppNameLabel] = app.Name
 	labels[config.LaunchedBySparkOperatorLabel] = "true"
 	labels[config.SubmissionIDLabel] = submissionID
-	//labels[config.SparkRoleLabel] = "driver"
+	labels[config.SparkRoleLabel] = config.SparkDriverRole
 
 	for key, val := range app.Labels {
 		//glog.Info("printing the labels %s = %s", key, val)
