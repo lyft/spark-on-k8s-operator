@@ -51,17 +51,17 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	labels := make(map[string]string)
+	//labels[config.SparkRoleLabel] = config.SparkDriverRole
+	labels[config.SparkRoleLabel] = "client-driver"
+
 	labels[config.SparkAppNameLabel] = app.Name
 	labels[config.LaunchedBySparkOperatorLabel] = "true"
 	labels[config.SubmissionIDLabel] = submissionID
-	labels[config.SparkRoleLabel] = config.SparkDriverRole
 
 	for key, val := range app.Labels {
-		//glog.Info("printing the labels %s = %s", key, val)
 		labels[key] = val
 	}
 	for key, val := range app.Spec.Driver.Labels {
-		//glog.Info("printing the labels here too: %s = %s", key, val)
 		labels[key] = val
 	}
 
