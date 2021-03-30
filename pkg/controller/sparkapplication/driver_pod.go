@@ -43,17 +43,16 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
-	if err != nil {
-		return "", "", err
-	}
-
-	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
+	//submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	//if err != nil {
+	//	return "", "", err
+	//}
+	//
+	//command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	labels := make(map[string]string)
 	//labels[config.SparkRoleLabel] = config.SparkDriverRole
 	labels[config.SparkRoleLabel] = "client-driver"
-
 	labels[config.SparkAppNameLabel] = app.Name
 	labels[config.LaunchedBySparkOperatorLabel] = "true"
 	labels[config.SubmissionIDLabel] = submissionID
@@ -69,9 +68,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		if strings.HasPrefix(key, "spark.kubernetes.driver.label.") {
 			label := strings.ReplaceAll(key, "spark.kubernetes.driver.label.", "")
 			labels[label] = value
-
-			//glog.Info("printing the labels here threee :  %s = %s", label, value)
-
 		}
 	}
 
@@ -105,6 +101,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	}
 
 	var args []string
+	args = append(args, "driver")
 	for _, argument := range app.Spec.Arguments {
 		args = append(args, argument)
 	}
@@ -192,7 +189,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 				{
 					Name:            "spark-kubernetes-driver",
 					Image:           image,
-					Command:         command,
 					Args:            args,
 					ImagePullPolicy: imagePullPolicy,
 					Env:             envVars,
