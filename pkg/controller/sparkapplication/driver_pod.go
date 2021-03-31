@@ -43,12 +43,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
-	//submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
-	//if err != nil {
-	//	return "", "", err
-	//}
-	//
-	//command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	labels := make(map[string]string)
 	//labels[config.SparkRoleLabel] = config.SparkDriverRole
@@ -100,12 +94,15 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		return "", "", err
 	}
 
-	var args []string
-	args = append(args, "driver")
-	for _, argument := range app.Spec.Arguments {
-		args = append(args, argument)
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	if err != nil {
+		return "", "", err
 	}
-	//append all env variables
+
+	args := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " ")), "driver"}
+
+	args = append(args, fmt.Sprintf("--class %s", *app.Spec.MainApplicationFile))
+	////append all env variables
 	var envVars []corev1.EnvVar
 	for key, value := range app.Spec.Driver.EnvVars {
 		envVars = append(envVars, corev1.EnvVar{Name: key, Value: value})
