@@ -94,14 +94,17 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		return "", "", err
 	}
 
+	var args []string
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
 	if err != nil {
 		return "", "", err
 	}
 
-	args := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " ")), "driver"}
+	args = append(args, "driver")
+	args = append(args, submissionCmdArgs...)
 
-	args = append(args, fmt.Sprintf("--class %s", *app.Spec.MainApplicationFile))
+	//args := []string{"driver", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
+
 	////append all env variables
 	var envVars []corev1.EnvVar
 	for key, value := range app.Spec.Driver.EnvVars {
