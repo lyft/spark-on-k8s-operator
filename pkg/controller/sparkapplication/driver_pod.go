@@ -43,6 +43,12 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	if err != nil {
+		return "", "", err
+	}
+
+	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	labels := make(map[string]string)
 	//labels[config.SparkRoleLabel] = config.SparkDriverRole
@@ -95,15 +101,9 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	}
 
 	var args []string
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
-	if err != nil {
-		return "", "", err
+	for _, argument := range app.Spec.Arguments {
+		args = append(args, argument)
 	}
-
-	args = append(args, "driver")
-	args = append(args, submissionCmdArgs...)
-
-	//args := []string{"driver", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	////append all env variables
 	var envVars []corev1.EnvVar
@@ -189,6 +189,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 				{
 					Name:            "spark-kubernetes-driver",
 					Image:           image,
+					Command:         command,
 					Args:            args,
 					ImagePullPolicy: imagePullPolicy,
 					Env:             envVars,
