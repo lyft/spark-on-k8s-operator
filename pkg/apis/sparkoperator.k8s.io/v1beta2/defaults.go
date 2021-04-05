@@ -16,14 +16,29 @@ limitations under the License.
 
 package v1beta2
 
+import (
+	"strings"
+)
+
 // SetSparkApplicationDefaults sets default values for certain fields of a SparkApplication.
 func SetSparkApplicationDefaults(app *SparkApplication) {
 	if app == nil {
 		return
 	}
 
+	var deployMode DeployMode
+	for key, value := range app.Spec.SparkConf {
+		if strings.HasPrefix(key, "spark.submit.deployMode") {
+			deployMode = DeployMode(value)
+		}
+	}
+
 	if app.Spec.Mode == "" {
-		app.Spec.Mode = ClusterMode
+		if deployMode != "" {
+			app.Spec.Mode = deployMode
+		} else {
+			app.Spec.Mode = ClientMode
+		}
 	}
 
 	if app.Spec.RestartPolicy.Type == "" {

@@ -277,6 +277,7 @@ func TestSyncSparkApplication_Submission(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
+			Mode:          v1beta2.ClusterMode,
 			RestartPolicy: restartPolicyOnFailure,
 		},
 		Status: v1beta2.SparkApplicationStatus{
@@ -527,6 +528,7 @@ func TestShouldRetry(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyAlways,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -713,6 +715,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyAlways,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -730,6 +733,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyAlways,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -747,6 +751,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyAlways,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -766,6 +771,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyAlways,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -784,6 +790,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyNever,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -802,6 +809,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyNever,
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -825,6 +833,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					ExecutionAttempts: 2,
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
@@ -844,6 +853,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					TerminationTime:   metav1.Now(),
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
@@ -863,6 +873,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					TerminationTime:   metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
@@ -881,6 +892,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					SubmissionTime: metav1.Now(),
 				},
 				Spec: v1beta2.SparkApplicationSpec{
+					Mode:          v1beta2.ClusterMode,
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
@@ -918,6 +930,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			Namespace: "test",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
+			Mode: v1beta2.ClusterMode,
 			RestartPolicy: v1beta2.RestartPolicy{
 				Type: v1beta2.Never,
 			},
@@ -1403,7 +1416,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			}
 		}
 
-    // Verify application metrics.
+		// Verify application metrics.
 		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
 		assert.Equal(t, test.expectedAppMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
 		assert.Equal(t, test.expectedAppMetrics.submitMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
