@@ -643,6 +643,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 			return err
 		}
 	case v1beta2.CompletedState, v1beta2.FailedState:
+		if appToUpdate.Spec.Mode == v1beta2.ClientMode {
+			c.deleteSparkUI(appToUpdate)
+		}
 		if c.hasApplicationExpired(app) {
 			glog.Infof("Garbage collecting expired SparkApplication %s/%s", app.Namespace, app.Name)
 			err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name, metav1.NewDeleteOptions(0))
@@ -862,6 +865,20 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 		return nil, err
 	}
 	return app, nil
+}
+
+//Delete the optional UI resources (Service) to get rid of env vars set by kubernetes
+func (c *Controller) deleteSparkUI(app *v1beta2.SparkApplication) error {
+	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
+	if sparkUIServiceName != "" {
+		glog.V(2).Infof("Deleting Spark UI Service %s in namespace %s", sparkUIServiceName, app.Namespace)
+		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
