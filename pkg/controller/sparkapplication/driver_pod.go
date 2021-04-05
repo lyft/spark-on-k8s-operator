@@ -51,7 +51,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 
 	labels := make(map[string]string)
-	//labels[config.SparkRoleLabel] = config.SparkDriverRole
 	labels[config.SparkRoleLabel] = "client-driver"
 	labels[config.SparkAppNameLabel] = app.Name
 	labels[config.LaunchedBySparkOperatorLabel] = "true"
@@ -105,7 +104,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		args = append(args, argument)
 	}
 
-	////append all env variables
+	//append all env variables
 	var envVars []corev1.EnvVar
 	for key, value := range app.Spec.Driver.EnvVars {
 		envVars = append(envVars, corev1.EnvVar{Name: key, Value: value})
@@ -144,7 +143,6 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 			annotations[annotation] = value
 		}
 	}
-	//append all secrets
 
 	//append all volumes
 	var volumes []corev1.Volume
