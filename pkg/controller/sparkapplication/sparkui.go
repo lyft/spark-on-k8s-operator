@@ -102,6 +102,10 @@ func createSparkUIService(
 	kubeClient clientset.Interface) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
+	roleSelector := config.SparkDriverRole
+	if app.Spec.Mode == v1beta2.ClientMode {
+		roleSelector = "client-driver"
+	}
 	if err != nil {
 		return nil, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
@@ -122,7 +126,7 @@ func createSparkUIService(
 			},
 			Selector: map[string]string{
 				config.SparkAppNameLabel: app.Name,
-				config.SparkRoleLabel:    config.SparkDriverRole,
+				config.SparkRoleLabel:    roleSelector,
 			},
 			Type: apiv1.ServiceTypeClusterIP,
 		},
