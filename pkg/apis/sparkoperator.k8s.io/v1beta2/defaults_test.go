@@ -29,14 +29,14 @@ func TestSetSparkApplicationDefaultsNilSparkApplicationShouldNotModifySparkAppli
 	assert.Nil(t, app)
 }
 
-func TestSetSparkApplicationDefaultsEmptyModeShouldDefaultToClusterMode(t *testing.T) {
+func TestSetSparkApplicationDefaultsEmptyModeShouldDefaultToClientMode(t *testing.T) {
 	app := &SparkApplication{
 		Spec: SparkApplicationSpec{},
 	}
 
 	SetSparkApplicationDefaults(app)
 
-	assert.Equal(t, ClusterMode, app.Spec.Mode)
+	assert.Equal(t, ClientMode, app.Spec.Mode)
 }
 
 func TestSetSparkApplicationDefaultsModeShouldNotChangeIfSet(t *testing.T) {
