@@ -144,6 +144,14 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		}
 	}
 
+	nodeSelectors := make(map[string]string)
+	for key, value := range app.Spec.SparkConf {
+		if strings.HasPrefix(key, "spark.kubernetes.node.selector.") {
+			nodeSelector := strings.ReplaceAll(key, "spark.kubernetes.node.selector.", "")
+			nodeSelectors[nodeSelector] = value
+		}
+	}
+
 	//append all volumes
 	var volumes []corev1.Volume
 	var volumeMounts []corev1.VolumeMount
@@ -183,6 +191,7 @@ func (spm *realClientModeSubmissionPodManager) createClientDriverPod(app *v1beta
 		Spec: corev1.PodSpec{
 			ImagePullSecrets: imagePullSecrets,
 			Volumes:          volumes,
+			NodeSelector:     nodeSelectors,
 			Containers: []corev1.Container{
 				{
 					Name:            "spark-kubernetes-driver",
