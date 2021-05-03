@@ -460,14 +460,17 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		}
 	case v1beta2.FailedSubmissionState:
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
-		if app.Spec.RestartPolicy.Type == v1beta2.Always {
+		if app.Spec.RestartPolicy.Type == v1beta2.Always || app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
 			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
-			if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts < 14 {
-
-				return true
-			}
 		}
+		//if app.Spec.RestartPolicy.Type == v1beta2.Always {
+		//	return true
+		//} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
+		//	if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts < 14 {
+		//
+		//		return true
+		//	}
+		//}
 	}
 	return false
 }
@@ -541,10 +544,10 @@ func (c *Controller) syncSparkApplication(key string) error {
 		}
 	case v1beta2.PendingSubmissionState:
 		//Resubmission is based on resource quota. We wait and then see if the interval passed to rerun
-		if app.Spec.Mode == v1beta2.ClientMode {
+		if app.Spec.Mode == v1beta2.ClientMode || app.Spec.Mode == "" {
 			if shouldRetry(appToUpdate) {
 				appToUpdate.Status.AppState.ErrorMessage = ""
-				app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
+				//app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 			}
 		} else {
@@ -616,10 +619,11 @@ func (c *Controller) syncSparkApplication(key string) error {
 				// Application is subject to retry. Move to PendingRerunState.
 				appToUpdate.Status.AppState.ErrorMessage = ""
 				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
-			} else {
-				//need to wait before resubmitting if client failure due to resource quota
-				appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
 			}
+			//else {
+			//	//need to wait before resubmitting if client failure due to resource quota
+			//	appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
+			//}
 		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-submission.
@@ -715,7 +719,15 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	if err != nil {
-		if !errors.IsAlreadyExists(err) || app.Spec.Mode == v1beta2.ClientMode {
+		if strings.Contains(err.Error(), "exceeded quota") && app.Spec.Mode == v1beta2.ClientMode {
+			app.Status = v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State:        v1beta2.PendingSubmissionState,
+					ErrorMessage: err.Error(),
+				},
+				SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+			}
+		} else if !errors.IsAlreadyExists(err) || app.Spec.Mode == v1beta2.ClientMode {
 			app.Status = v1beta2.SparkApplicationStatus{
 				AppState: v1beta2.ApplicationState{
 					State:        v1beta2.FailedSubmissionState,
@@ -990,12 +1002,22 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			"SparkApplication %s was added, enqueuing it for submission",
 			app.Name)
 	case v1beta2.PendingSubmissionState:
-		c.recorder.Eventf(
-			app,
-			apiv1.EventTypeNormal,
-			"SubmissionJobCreated",
-			"Submission Job for SparkApplication %s was created",
-			app.Name)
+		if app.Spec.Mode == v1beta2.ClientMode {
+			c.recorder.Eventf(
+				app,
+				apiv1.EventTypeNormal,
+				"Submitting Spark Application",
+				"Submission SparkApplication %s is pending",
+				app.Name)
+
+		} else {
+			c.recorder.Eventf(
+				app,
+				apiv1.EventTypeNormal,
+				"SubmissionJobCreated",
+				"Submission Job for SparkApplication %s was created",
+				app.Name)
+		}
 	case v1beta2.SubmittedState:
 		c.recorder.Eventf(
 			app,
