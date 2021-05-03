@@ -719,7 +719,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	if err != nil {
-		if strings.Contains(err.Error(), "exceeded quota") && app.Spec.Mode == v1beta2.ClientMode {
+		if strings.Contains(err.Error(), "exceeded quota") && app.Spec.Mode == v1beta2.ClientMode && app.Status.SubmissionAttempts < 14 {
 			app.Status = v1beta2.SparkApplicationStatus{
 				AppState: v1beta2.ApplicationState{
 					State:        v1beta2.PendingSubmissionState,
