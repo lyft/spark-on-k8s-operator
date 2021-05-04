@@ -455,14 +455,14 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		}
 	case v1beta2.PendingSubmissionState:
 		var interval int64 = 257
-		if app.Spec.Mode != v1beta2.ClusterMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts < 14 {
+		if app.Spec.Mode != v1beta2.ClusterMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts <= 14 {
 			return true
 		}
 	case v1beta2.FailedSubmissionState:
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Status.SubmissionAttempts < 14 {
+		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Status.SubmissionAttempts <= 14 {
 
 			return true
 		}
