@@ -455,23 +455,19 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		}
 	case v1beta2.PendingSubmissionState:
 		var interval int64 = 257
-		if app.Spec.Mode == v1beta2.ClientMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts < 14 {
+		if app.Spec.Mode != v1beta2.ClusterMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts < 14 {
 			return true
 		}
 	case v1beta2.FailedSubmissionState:
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
-		if app.Spec.RestartPolicy.Type == v1beta2.Always || app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
+		if app.Spec.RestartPolicy.Type == v1beta2.Always {
+			return true
+		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Status.SubmissionAttempts < 14 {
+
 			return true
 		}
-		//if app.Spec.RestartPolicy.Type == v1beta2.Always {
-		//	return true
-		//} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
-		//	if app.Spec.Mode == v1beta2.ClientMode && strings.Contains(app.Status.AppState.ErrorMessage, "exceeded quota") && app.Status.SubmissionAttempts < 14 {
-		//
-		//		return true
-		//	}
-		//}
 	}
+
 	return false
 }
 
@@ -547,7 +543,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if app.Spec.Mode == v1beta2.ClientMode || app.Spec.Mode == "" {
 			if shouldRetry(appToUpdate) {
 				appToUpdate.Status.AppState.ErrorMessage = ""
-				//app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 			}
 		} else {
@@ -620,10 +615,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate.Status.AppState.ErrorMessage = ""
 				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 			}
-			//else {
-			//	//need to wait before resubmitting if client failure due to resource quota
-			//	appToUpdate.Status.AppState.State = v1beta2.PendingSubmissionState
-			//}
 		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-submission.
