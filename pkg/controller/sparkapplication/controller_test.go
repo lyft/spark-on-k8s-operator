@@ -485,6 +485,7 @@ func TestValidateDetectsNodeSelectorFailsAppAndPodLevel(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+//change this test back to true, as of now retries are based on onFailureRetries
 func TestShouldRetry(t *testing.T) {
 	type testcase struct {
 		app         *v1beta2.SparkApplication
@@ -622,7 +623,7 @@ func TestShouldRetry(t *testing.T) {
 					},
 				},
 			},
-			shouldRetry: false,
+			shouldRetry: true,
 		},
 		{
 			app: &v1beta2.SparkApplication{

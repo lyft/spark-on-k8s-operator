@@ -462,7 +462,7 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Status.SubmissionAttempts <= 14 {
+		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Spec.Mode != v1beta2.ClusterMode && app.Status.SubmissionAttempts <= 14 {
 
 			return true
 		}
