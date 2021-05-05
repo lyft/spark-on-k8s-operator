@@ -454,17 +454,21 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 			}
 		}
 	case v1beta2.PendingSubmissionState:
+		//only used for client mode
 		var interval int64 = 257
-		if app.Spec.Mode != v1beta2.ClusterMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Status.SubmissionAttempts <= 14 {
-			return true
+		if app.Spec.Mode != v1beta2.ClusterMode && hasRetryIntervalPassed(&interval, app.Status.SubmissionAttempts, app.CreationTimestamp) && app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
+			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+				return true
+			}
 		}
 	case v1beta2.FailedSubmissionState:
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Spec.Mode != v1beta2.ClusterMode && app.Status.SubmissionAttempts <= 14 {
-
-			return true
+		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Spec.Mode != v1beta2.ClusterMode {
+			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+				return true
+			}
 		}
 	}
 
@@ -710,13 +714,25 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	if err != nil {
-		if strings.Contains(err.Error(), "exceeded quota") && app.Spec.Mode == v1beta2.ClientMode && app.Status.SubmissionAttempts < 14 {
-			app.Status = v1beta2.SparkApplicationStatus{
-				AppState: v1beta2.ApplicationState{
-					State:        v1beta2.PendingSubmissionState,
-					ErrorMessage: err.Error(),
-				},
-				SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+		if strings.Contains(err.Error(), "exceeded quota") && app.Spec.Mode == v1beta2.ClientMode {
+			if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
+				if app.Status.SubmissionAttempts < *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+					app.Status = v1beta2.SparkApplicationStatus{
+						AppState: v1beta2.ApplicationState{
+							State:        v1beta2.PendingSubmissionState,
+							ErrorMessage: err.Error(),
+						},
+						SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+					}
+				}
+			} else if app.Spec.RestartPolicy.Type == v1beta2.Always {
+				app.Status = v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State:        v1beta2.PendingSubmissionState,
+						ErrorMessage: err.Error(),
+					},
+					SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+				}
 			}
 		} else if !errors.IsAlreadyExists(err) || app.Spec.Mode == v1beta2.ClientMode {
 			app.Status = v1beta2.SparkApplicationStatus{
