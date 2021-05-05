@@ -55,6 +55,12 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = new(int64)
 			*app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = 5
 		}
+
+		if app.Spec.RestartPolicy.OnSubmissionFailureRetries == nil {
+			app.Spec.RestartPolicy.OnSubmissionFailureRetries = new(int32)
+			*app.Spec.RestartPolicy.OnSubmissionFailureRetries = 14
+		}
+
 	}
 
 	setDriverSpecDefaults(&app.Spec.Driver)
