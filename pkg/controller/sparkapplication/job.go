@@ -139,6 +139,10 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 		// User driver service-account if not set at Spec level.
 		job.Spec.Template.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
 	}
+
+	if len(app.Spec.NodeSelector) > 0 {
+		job.Spec.Template.Spec.NodeSelector = app.Spec.NodeSelector
+	}
 	// Copy the labels on the SparkApplication to the Job.
 	for key, val := range app.Labels {
 		job.Labels[key] = val
